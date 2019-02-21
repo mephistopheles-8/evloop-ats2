@@ -8,6 +8,10 @@ PATSCC=$(PATSHOMEQ)/bin/patscc
 PATSFLAGS=-DATS_MEMALLOC_LIBC
 CFLAGS=-O2
 
+all:: test00
+test00: test00.dats ; $(PATSCC) $(PATSFLAGS) $(CFLAGS) -o $@ $< 
+cleanall:: ; $(RMF) test00
+
 all:: test01
 test01: test01.dats ; $(PATSCC) $(PATSFLAGS) $(CFLAGS) -o $@ $< 
 cleanall:: ; $(RMF) test01
