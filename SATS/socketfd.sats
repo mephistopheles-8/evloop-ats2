@@ -156,19 +156,24 @@ fun socketfd_setup(
  , params : &socketfd_setup_params
 ) : #[b:bool] bool b
 
-fun socketfd_write_string
-  {fd:int}{n,m:nat | m <= n}
-  ( pf: !socketfd(fd,conn), str: string n, sz: size_t m )
-  : ssizeBtwe(~1,m) = "mac#write"
-
 fun socketfd_read
   {fd:int}{n,m:nat | m <= n}
   ( pf: !socketfd(fd,conn), buf: &bytes(n), sz: size_t m )
   : ssizeBtwe(~1,m) = "mac#read"
 
-fun socket_write_string
+fun socketfd_write
   {fd:int}{n,m:nat | m <= n}
-  ( pf: !socket_v(fd,conn) | fd : int fd, str: string n, sz: size_t m )
+  ( pf: !socketfd(fd,conn), buf: &bytes(n), sz: size_t m )
+  : ssizeBtwe(~1,m) = "mac#write"
+
+fun socketfd_write_string
+  {fd:int}{n,m:nat | m <= n}
+  ( pf: !socketfd(fd,conn), str: string n, sz: size_t m )
+  : ssizeBtwe(~1,m) = "mac#write"
+
+fun socketfd_write_strnptr
+  {fd:int}{n,m:nat | m <= n}
+  ( pf: !socketfd(fd,conn), buf: !strnptr(n), sz: size_t m )
   : ssizeBtwe(~1,m) = "mac#write"
 
 
