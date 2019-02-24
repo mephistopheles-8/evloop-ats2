@@ -9,12 +9,12 @@ staload "./../SATS/socketfd.sats"
 #include <sys/epoll.h>
 %}
 
-abst@ype epoll_behaviour
+abst@ype epoll_behaviour = int
 // File: /usr/include/bits/epoll.h
 macdef EPOLL_CLOEXEC   = $extval(epoll_behaviour,"EPOLL_CLOEXEC")
 macdef EP0             = $extval(epoll_behaviour, "0")
 
-abst@ype epoll_event_kind
+abst@ype epoll_event_kind = uint32
 macdef EPOLLIN         = $extval(epoll_event_kind,"EPOLLIN")
 macdef EPOLLPRI        = $extval(epoll_event_kind,"EPOLLPRI")
 macdef EPOLLOUT        = $extval(epoll_event_kind,"EPOLLOUT")
@@ -31,8 +31,18 @@ macdef EPOLLWAKEUP     = $extval(epoll_event_kind,"EPOLLWAKEUP")
 macdef EPOLLONESHOT    = $extval(epoll_event_kind,"EPOLLONESHOT")
 macdef EPOLLET         = $extval(epoll_event_kind,"EPOLLET")
 
+fn epoll_event_kind_lor ( epoll_event_kind, epoll_event_kind ) 
+  :<> epoll_event_kind
 
-abst@ype epoll_action
+overload lor with epoll_event_kind_lor
+
+castfn epoll_event_kind_uint32 ( epoll_event_kind ) 
+  :<> uint32
+
+symintr eek2ui
+overload eek2ui with epoll_event_kind_uint32
+
+abst@ype epoll_action = int
 macdef EPOLL_CTL_ADD = $extval(epoll_action, "EPOLL_CTL_ADD")
 macdef EPOLL_CTL_DEL = $extval(epoll_action, "EPOLL_CTL_DEL")
 macdef EPOLL_CTL_MOD = $extval(epoll_action, "EPOLL_CTL_MOD")
@@ -51,9 +61,7 @@ epollfd_decode{fd:int}( epollfd(fd) )
 
 vtypedef epollfd = [fd:int] epollfd(fd)
 
-abst@ype epoll_data
  
-typedef epoll_data_t = epoll_data
 
 viewdef ptr_v_1 (a:t@ype, l:addr) = a @ l
 
@@ -63,14 +71,39 @@ typedef epoll_data = $extype_struct"union epoll_data" of {
   u32 = uint32,
   u64 = uint64
 }
+
+typedef epoll_data_t = epoll_data
+
 typedef epoll_event = $extype_struct"struct epoll_event" of {
-  events = uint32,
+  events = epoll_event_kind,
   data = epoll_data_t
 }
 
+
+
+castfn
+epoll_data_fd( int ) : epoll_data_t 
+
+castfn
+epoll_data_socketfd( !socketfd0 ) : epoll_data_t 
+
+castfn
+epoll_data_ptr( ptr ) : epoll_data_t 
+
+castfn
+epoll_data_uint32( uint32 ) : epoll_data_t 
+
+castfn
+epoll_data_uint64( uint64 ) : epoll_data_t 
+
+
+fun epollfd_close{fd:int}( epoll_v(fd) | int fd  )  
+  : [err: int | err >= ~1; err <= 0] 
+    ( option_v(epoll_v(fd), err == ~1) | int err ) = "mac#close"
+
 fun epoll_create: {n:pos} (int n) -> [fd:int] (option_v(epoll_v(fd), fd > 0) | int fd) = "mac#epoll_create"
 fun epoll_create1: (epoll_behaviour) -> [fd:int] (option_v(epoll_v(fd), fd > 0) | int fd) = "mac#epoll_create1"
-fun epoll_ctl:   ( !epollfd, epoll_action, !socketfd1(conn), &epoll_event ) -> int = "mac#epoll_ctl"
+fun epoll_ctl:   ( !epollfd, epoll_action, !socketfd0, &epoll_event ) -> intBtwe(~1,0) = "mac#epoll_ctl"
 fun epoll_wait:  {n,m:nat | m <= n}( !epollfd, &(@[epoll_event][n]), int m, int) -> intBtwe(~1,m) = "mac#epoll_wait"
 fun epoll_pwait: {n,m:nat | m <= n}(  !epollfd, &(@[epoll_event][n]), int m, int, &sigset_t) -> intBtwe(~1,m) = "mac#epoll_pwait"
 

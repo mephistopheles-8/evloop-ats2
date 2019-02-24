@@ -129,7 +129,7 @@ fun socketfd_listen{fd:int}
   ): #[b:bool] bool b
 
 fun socketfd_accept{fd:int}
-  ( sfd: &socketfd(fd,listen)
+  ( sfd: !socketfd(fd,listen)
   , cfd: &socketfd0? >> sockopt(conn,b)
   ): #[b:bool] bool b
 

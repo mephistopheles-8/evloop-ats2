@@ -201,7 +201,9 @@ socketfd_accept(sfd,cfd)
        then 
         let
             prval Some_v(pconn) = pfc
-            val () = sfd := socketfd_encode( pf | fd )
+            prval () = $effmask_all(
+              sfd := socketfd_encode( pf | fd )
+            )
             val () = cfd := socketfd_encode( pconn | fd2 )
             prval () = sockopt_some( cfd ) 
          in true 
@@ -209,7 +211,9 @@ socketfd_accept(sfd,cfd)
        else
         let
             prval None_v() = pfc
-            val () = sfd := socketfd_encode( pf | fd )
+            prval () = $effmask_all(
+              sfd := socketfd_encode( pf | fd )
+            )
             prval () = sockopt_none( cfd  ) 
          in false 
         end 
