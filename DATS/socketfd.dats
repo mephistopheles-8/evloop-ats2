@@ -192,18 +192,28 @@ socketfd_listen(sfd, backlog)
         end 
     end 
 
+local
+      extern castfn
+      socketfd_decode1{fd:int}{st:status}
+        ( !socketfd(fd,st) )
+        : ( socket_v(fd,st) | int fd )
+
+      extern praxi
+      socket_v_elim{fd:int}{st:status}
+      ( socket_v(fd,st) ) : void
+
+in
 implement
 socketfd_accept(sfd,cfd)
   = let
-      val (pf | fd) = socketfd_decode( sfd )
+ 
+      val (pf | fd) = socketfd_decode1( sfd )
       val (pfc | fd2) = accept_null_err( pf | fd) 
     in if fd2 >= 0 
        then 
         let
             prval Some_v(pconn) = pfc
-            prval () = $effmask_all(
-              sfd := socketfd_encode( pf | fd )
-            )
+            prval () = socket_v_elim( pf )
             val () = cfd := socketfd_encode( pconn | fd2 )
             prval () = sockopt_some( cfd ) 
          in true 
@@ -211,13 +221,12 @@ socketfd_accept(sfd,cfd)
        else
         let
             prval None_v() = pfc
-            prval () = $effmask_all(
-              sfd := socketfd_encode( pf | fd )
-            )
+            prval () = socket_v_elim( pf )
             prval () = sockopt_none( cfd  ) 
          in false 
         end 
     end 
+end (** END, [local] **)
 
 implement
 socketfd_setup(sfd,params)

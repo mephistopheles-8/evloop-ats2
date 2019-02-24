@@ -151,12 +151,12 @@ server_loop
                       in ()
                       end 
 
-                    var efd0 = efd
+                    var efd0 = $UNSAFE.castvwtp1{epollfd(efd)}(efd)
+
                     val ()   = socketfd_accept_all<epollfd(efd)>(sfd,efd0)
 
-                    prval ()   =  $effmask_all(
-                          efd := efd0
-                        ) 
+                    val () = $UNSAFE.castvwtp0{void}(efd0)
+
 
                   }
                 else 
