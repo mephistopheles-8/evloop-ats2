@@ -10,8 +10,9 @@ fn eek_has( e1: epoll_event_kind, e2: epoll_event_kind )
   :<> bool
   = $UNSAFE.cast{int}(eek2ui(e1) land eek2ui(e2)) != 0 
 
-fn epollfd_listen( efd: !epollfd, sfd: !socketfd0 ) 
-  : intBtwe(~1,0)
+
+implement
+epollfd_add0( efd, sfd )
   = let
       var event = (@{
           events = EPOLLIN lor EPOLLET
@@ -19,26 +20,6 @@ fn epollfd_listen( efd: !epollfd, sfd: !socketfd0 )
         }): epoll_event
      in epoll_ctl( efd, EPOLL_CTL_ADD, sfd, event )
     end 
-
-
-(** If we add an sfd to epoll, we are likely managing the connection
-    via another process.  socketfd can be "free'd" without beeing closed. 
-  
-    These processes are the same as epollfd_listen except they provide
-    a proof, which lets us defer management of the sfd to another process
-**)
-absprop epoll_add_v(fd:int, st:status)
-
-extern
-fn epollfd_add{efd,fd:int}{st:status}( efd: !epollfd(efd), sfd: !socketfd(fd,st) ) 
-  : [err: int | err >= ~1; err <= 0]
-    (option_v(epoll_add_v(fd,st), err == 0) | int err )
-
-extern
-prfn epollfd_add_elim{fd:int}{st:status}( epoll_add_v(fd,st) ) : void
-
-extern
-prfn epol_add_sfd_free{fd:int}{st:status}( epoll_add_v(fd,st), socketfd(fd,st) ) : void
 
 
 fn epollfd_create_exn () : epollfd
@@ -97,6 +78,32 @@ socketfd_accept_all{fd:int}( sfd: !socketfd(fd,listen), env: &env >> _ )
         end
   end
 
+
+implement {env}
+epoll_events_foreach( pwait, parr | p, n, env ) 
+  = let
+      implement
+      array_foreach$fwork<epoll_event><env>( x, env ) =
+          epoll_events_foreach$fwork<env>( pf | x.events, sfd , env )
+        where {
+            extern
+            prfn epoll_add_intr {fd:int}{st:status}( !socketfd(fd,st) ) 
+              : epoll_add_v(fd,st)
+
+            val sfd = $UNSAFE.castvwtp1{socketfd0}(x.data.fd)
+            prval pf = epoll_add_intr(sfd)
+          }
+
+      prval (pf1, pf2 ) = array_v_split_at(parr | i2sz(n))
+ 
+      val _ = array_foreach_env<epoll_event><env>( !p, i2sz(n), env )
+
+      prval () = parr := array_v_unsplit( pf1, pf2 )
+ 
+    in ()
+    end
+
+
 fun 
 server_loop
   ( sfd: !socketfd1(listen) )
@@ -107,6 +114,7 @@ server_loop
       var buf = @[byte][BUFSZ](i2byte(0))
       var ebuf = @[epoll_event][MAXEVTS](epoll_event_empty())
       val efd = epollfd_create_exn()
+
 
       fun loop_evts
         {en,em:nat | em <= en}
@@ -126,6 +134,7 @@ server_loop
               if eek_has(events, EPOLLERR ) ||
                  eek_has(events, EPOLLHUP )
               then (
+                  println!("Err, HUP");
                   socketfd_close_exn( $UNSAFE.castvwtp1{socketfd0}(evts[esz-1].data.fd) )
                 )
               else
@@ -135,18 +144,20 @@ server_loop
                     implement(efd)
                     socketfd_accept_all$withfd<epollfd(efd)>(cfd,efd) =
                       let
-                        extern // replace this with add interface
-                        prfn sfd_free( socketfd0 ) : void
-                        val () = assertloc( epollfd_listen( efd, cfd ) = 0 ) 
-                        prval () = sfd_free( cfd )
+                        val (pf | err) = epollfd_add1( efd, cfd ) 
+                        val () = assertloc( err = 0 )
+                        prval Some_v( pfadd ) = pf 
+                        prval () = epoll_add_sfd_elim( pfadd , cfd )
                       in ()
                       end 
 
                     var efd0 = efd
                     val ()   = socketfd_accept_all<epollfd(efd)>(sfd,efd0)
+
                     prval ()   =  $effmask_all(
                           efd := efd0
-                        )
+                        ) 
+
                   }
                 else 
                   let
@@ -161,6 +172,7 @@ server_loop
                             var ev = epoll_event_empty()
                             val _ =  epoll_ctl( efd, EPOLL_CTL_DEL, cfd, ev )
 
+                            val () = println!("Closing");
                            in socketfd_close_exn( cfd )
                           end
                        else ( println!("Error, read."); 
@@ -194,7 +206,7 @@ server_loop
         end
 
 
-      val () = assertloc( epollfd_listen( efd, sfd ) = 0 )
+      val () = assertloc( epollfd_add0( efd, sfd ) = 0 )
     
     in
        loop_epoll( sfd, efd, ebuf, i2sz(MAXEVTS), buf, i2sz(BUFSZ) ); 

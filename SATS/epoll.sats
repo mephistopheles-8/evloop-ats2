@@ -61,8 +61,6 @@ epollfd_decode{fd:int}( epollfd(fd) )
 
 vtypedef epollfd = [fd:int] epollfd(fd)
 
- 
-
 viewdef ptr_v_1 (a:t@ype, l:addr) = a @ l
 
 typedef epoll_data = $extype_struct"union epoll_data" of {
@@ -107,4 +105,43 @@ fun epoll_ctl:   ( !epollfd, epoll_action, !socketfd0, &epoll_event ) -> intBtwe
 fun epoll_wait:  {n,m:nat | m <= n}( !epollfd, &(@[epoll_event][n]), int m, int) -> intBtwe(~1,m) = "mac#epoll_wait"
 fun epoll_pwait: {n,m:nat | m <= n}(  !epollfd, &(@[epoll_event][n]), int m, int, &sigset_t) -> intBtwe(~1,m) = "mac#epoll_pwait"
 
+fn epollfd_add0( efd: !epollfd, sfd: !socketfd0 ) 
+  : intBtwe(~1,0) = "ext#%"
 
+(** If we add an sfd to epoll, we are likely managing the connection
+    via another process.  socketfd can be "free'd" without beeing closed. 
+  
+    These processes are the same as epollfd_add0 except they provide
+    a proof, which lets us defer management of the sfd to another process
+**)
+absprop epoll_add_v(fd:int, st:status)
+
+fn epollfd_add1{efd,fd:int}{st:status}( efd: !epollfd(efd), sfd: !socketfd(fd,st) ) 
+  : [err: int | err >= ~1; err <= 0]
+    (option_v(epoll_add_v(fd,st), err == 0) | int err )
+  = "mac#%epollfd_add0"
+
+prfn epoll_add_elim{fd:int}{st:status}( epoll_add_v(fd,st) ) : void
+
+prfn epoll_add_sfd_elim{fd:int}{st:status}( epoll_add_v(fd,st), socketfd(fd,st) ) : void
+
+absprop epoll_wait_v(l:addr, n:int)
+
+fun epoll_wait1:  
+  {n,m:nat | m <= n}{l:addr}{efd:int}
+  ( !(@[epoll_event][n] @ l) | !epollfd(efd), ptr l, int m, int) 
+  -> [o:int | o >= ~1 && o <= m]
+     (option_v(epoll_wait_v(l,o), o > ~1) | int o ) = "mac#epoll_wait"
+
+
+fun {env: vt@ype+}
+  epoll_events_foreach$fwork{fd:int}{st:status}
+  ( epoll_add_v(fd,st) | epoll_event_kind, socketfd(fd,st), &env >> _ )
+  : void 
+
+fun {env: vt@ype+}
+  epoll_events_foreach{n,o:nat | o <= n}{l:addr}
+  ( epoll_wait_v(l,o), !(@[epoll_event][n] @ l) | ptr l, int o, &env >> _ )
+  : void
+
+ 
