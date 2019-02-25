@@ -176,4 +176,9 @@ fun socketfd_write_strnptr
   ( pf: !socketfd(fd,conn), buf: !strnptr(n), sz: size_t m )
   : ssizeBtwe(~1,m) = "mac#write"
 
+fun {env: vt@ype+} socketfd_accept_all$withfd( cfd: socketfd1(conn), &env >> _ )
+  : void 
 
+fun {env: vt@ype+} 
+socketfd_accept_all{fd:int}( sfd: !socketfd(fd,listen), env: &env >> _ ) 
+  : void

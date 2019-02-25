@@ -263,3 +263,22 @@ socketfd_setup(sfd,params)
         end
   end
 
+implement {env} 
+socketfd_accept_all{fd:int}( sfd, env ) 
+  : void =
+  let
+      var cfd : socketfd0?
+   in if socketfd_accept( sfd, cfd ) 
+      then
+        let
+          prval () = sockopt_unsome(cfd)
+          val () = socketfd_accept_all$withfd<env>(cfd,env)
+        in socketfd_accept_all<env>( sfd, env )
+        end
+      else 
+        let
+          prval () = sockopt_unnone(cfd)
+        in ()
+        end
+  end
+

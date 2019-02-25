@@ -2,108 +2,6 @@
 #include "share/atspre_staload.hats"
 #include "./../mylibies_link.hats"
 
-implement
-epoll_event_kind_lor( e1, e2 ) =
-  $UNSAFE.cast{epoll_event_kind}( eek2ui(e1) lor eek2ui(e2) ) 
-
-fn eek_has( e1: epoll_event_kind, e2: epoll_event_kind ) 
-  :<> bool
-  = $UNSAFE.cast{int}(eek2ui(e1) land eek2ui(e2)) != 0 
-
-
-implement
-epollfd_add0( efd, sfd )
-  = let
-      var event = (@{
-          events = EPOLLIN lor EPOLLET
-        , data = epoll_data_socketfd( sfd )   
-        }): epoll_event
-     in epoll_ctl( efd, EPOLL_CTL_ADD, sfd, event )
-    end 
-
-
-fn epollfd_create_exn () : epollfd
-  = let
-      val (pf | fd ) = epoll_create1(EP0)
-      val () = assertloc( fd > 0 ) 
-      prval Some_v( pfep ) = pf
-    in epollfd_encode( pfep | fd )
-    end
-
-fn epollfd_close_exn{fd:int}(efd: epollfd(fd)) 
-  : void
-  = let
-      val (pfep | fd ) = epollfd_decode( efd )  
-      val ( pf | err ) = epollfd_close( pfep | fd )
-      val () = assertloc( err = 0 )
-      prval None_v() = pf  
-     in ()
-    end
-
-fn epoll_event_empty () : epoll_event =
-      @{events = $UNSAFE.cast{epoll_event_kind}(0), data = epoll_data_ptr(the_null_ptr) }
-
-fn eq_socketfd_int {fd,n:int}{st:status}( sfd : !socketfd(fd,st), n: int n) 
-  :<> [b:bool | b == (fd == n)] bool b 
-  = $UNSAFE.castvwtp1{int fd}(sfd) = n
-
-fn eq_socketfd_socketfd {fd,fd1:int}{st,st1:status}( sfd : !socketfd(fd,st), sfd1 : !socketfd(fd1,st1)) 
-  :<> [b:bool | b == (fd == fd1)] bool b 
-  = $UNSAFE.castvwtp1{int fd}(sfd) = $UNSAFE.castvwtp1{int fd1}(sfd1)
-
-overload = with eq_socketfd_int
-overload = with eq_socketfd_socketfd
-
-extern
-fun {env: vt@ype+} socketfd_accept_all$withfd( cfd: socketfd1(conn), &env >> _ )
-  : void 
-
-
-fun {env: vt@ype+} 
-socketfd_accept_all{fd:int}( sfd: !socketfd(fd,listen), env: &env >> _ ) 
-  : void =
-  let
-      var cfd : socketfd0?
-   in if socketfd_accept( sfd, cfd ) 
-      then
-        let
-          prval () = sockopt_unsome(cfd)
-          val () = socketfd_accept_all$withfd<env>(cfd,env)
-        in socketfd_accept_all<env>( sfd, env )
-        end
-      else 
-        let
-          prval () = sockopt_unnone(cfd)
-        in ()
-        end
-  end
-
-
-implement {env}
-epoll_events_foreach( pwait, parr | p, n, env ) 
-  = let
-      implement
-      array_foreach$fwork<epoll_event><env>( x, env ) =
-          epoll_events_foreach$fwork<env>( pf | x.events, sfd , env )
-        where {
-            extern
-            prfn epoll_add_intr {fd:int}{st:status}( !socketfd(fd,st) ) 
-              : epoll_add_v(fd,st)
-
-            val sfd = $UNSAFE.castvwtp1{socketfd0}(x.data.fd)
-            prval pf = epoll_add_intr(sfd)
-          }
-
-      prval (pf1, pf2 ) = array_v_split_at(parr | i2sz(n))
- 
-      val _ = array_foreach_env<epoll_event><env>( !p, i2sz(n), env )
-
-      prval () = parr := array_v_unsplit( pf1, pf2 )
- 
-    in ()
-    end
-
-
 fun 
 server_loop
   ( sfd: !socketfd1(listen) )
@@ -156,8 +54,6 @@ server_loop
                     val ()   = socketfd_accept_all<epollfd(efd)>(sfd,efd0)
 
                     val () = $UNSAFE.castvwtp0{void}(efd0)
-
-
                   }
                 else 
                   let
