@@ -50,6 +50,7 @@ macdef EPOLL_CTL_MOD = $extval(epoll_action, "EPOLL_CTL_MOD")
 absview epoll_v(int)
 
 absvt@ype epollfd(int) = int
+abst@ype epoll(int) = int
 
 castfn 
 epollfd_encode{fd:int}( epoll_v(fd) | int fd ) 
@@ -58,6 +59,14 @@ epollfd_encode{fd:int}( epoll_v(fd) | int fd )
 castfn 
 epollfd_decode{fd:int}( epollfd(fd) ) 
   : (epoll_v(fd) | int fd)
+
+castfn 
+epollfd_epoll{fd:int}( epollfd(fd) ) 
+  : ( epoll_v(fd) | epoll(fd) )
+
+castfn 
+epoll_epollfd{fd:int}( epoll_v(fd) | epoll(fd) ) 
+  : epollfd(fd)
 
 vtypedef epollfd = [fd:int] epollfd(fd)
 
@@ -164,3 +173,6 @@ overload = with eq_socketfd_socketfd
 
 fn eek_has( e1: epoll_event_kind, e2: epoll_event_kind ) 
   :<> bool
+
+
+
