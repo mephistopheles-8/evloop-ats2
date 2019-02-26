@@ -26,7 +26,7 @@ fun {}
 
 fun {}
   async_tcp_pool_add{fd:int}
-  ( !async_tcp_pool, &socketfd(fd,conn) >> opt(socketfd(fd,conn),~b) )
+  ( !async_tcp_pool, &socketfd(fd,conn) >> opt(socketfd(fd,conn),~b), async_tcp_event )
   : #[b:bool] bool b 
 
 
