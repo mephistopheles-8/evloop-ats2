@@ -16,12 +16,12 @@ fun {}
   : #[b:bool] bool b
 
 fun {env:vt@ype+}
-   async_tcp_pool_run( !async_tcp_pool, env: &env >> _ ) : void
+   async_tcp_pool_run( &async_tcp_pool, env: &env >> _ ) : void
 
 fun {}
-  async_tcp_pool_close
-  ( &async_tcp_pool? >> opt(async_tcp_pool,~b) )
-  : #[b:bool] bool b
+  async_tcp_pool_close_exn
+  ( &async_tcp_pool >> async_tcp_pool?  )
+  : void
 
 
 fun {}
@@ -37,10 +37,19 @@ fun {}
 
 
 (** user **)
+fun {env:vt@ype+} 
+  async_tcp_pool_error{fd:int}
+  ( &async_tcp_pool, socketfd(fd,conn), &env >> _ )
+  : void
+
+fun {env:vt@ype+} 
+  async_tcp_pool_hup{fd:int}
+  ( &async_tcp_pool, socketfd(fd,conn), &env >> _ )
+  : void
 
 fun {env:vt@ype+} 
   async_tcp_pool_accept{fd:int}
-  ( socketfd(fd,conn), &env >> _ )
+  ( &async_tcp_pool, socketfd(fd,conn), &env >> _ )
   : void
 
 fun {env:vt@ype+} 
