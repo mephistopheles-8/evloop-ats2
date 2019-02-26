@@ -25,6 +25,10 @@ macdef O_NONBLOCK = $extval(fcntlflags, "O_NONBLOCK")
 
 staload "./../SATS/socketfd.sats"
 
+exception SocketfdCreateExn
+exception SocketfdCloseExn of socketfd0
+
+
 implement
 socketfd_create( sfd, af, st )
   = let
@@ -58,9 +62,19 @@ socketfd_set_nonblocking( sfd )
 implement
 socketfd_create_exn(af,st)
   = let
-      val (pf | fd) = socket_AF_type_exn(af,st)
-      in socketfd_encode( pf | fd ) 
-     end
+      val (pf | fd) = socket_AF_type(af,st)
+     in if fd >= 0
+        then 
+          let
+             prval Some_v(psock) = pf
+           in socketfd_encode(psock | fd)
+          end
+        else  
+          let
+            prval None_v() = pf
+          in $raise SocketfdCreateExn()
+          end
+    end 
 
 implement
 socketfd_create_opt(af,st) 
@@ -92,12 +106,6 @@ socketfd_bind_in(sfd,sockaddr)
      then true
      else false
 
-implement
-socketfd_close_exn(sfd)
-  = {
-      val (pf | fd) = socketfd_decode( sfd )
-      val () = socket_close_exn( pf | fd )
-  }
 
 implement
 socketfd_close(sfd)
@@ -118,6 +126,20 @@ socketfd_close(sfd)
           prval () = sockopt_none( sfd ) 
          in true 
         end
+    end
+
+implement
+socketfd_close_exn(sfd)
+  = let
+      var sfd = sfd
+    in if socketfd_close( sfd ) 
+       then {
+            prval () = sockopt_unnone(sfd)
+          }
+        else $raise SocketfdCloseExn(sfd)
+        where {
+            prval () = sockopt_unsome(sfd)
+        }
     end
 
 implement

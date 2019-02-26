@@ -6,6 +6,9 @@ staload "libats/libc/SATS/sys/socket.sats"
 staload "./../SATS/socketfd.sats"
 staload "./../SATS/epoll.sats"
 
+exception EpollCreateExn
+exception EpollCloseExn of (epollfd)
+
 implement
 epoll_event_kind_lor( e1, e2 ) =
   $UNSAFE.cast{epoll_event_kind}( eek2ui(e1) lor eek2ui(e2) ) 
@@ -29,9 +32,17 @@ implement
 epollfd_create_exn ()
   = let
       val (pf | fd ) = epoll_create1(EP0)
-      val () = assertloc( fd > 0 ) 
-      prval Some_v( pfep ) = pf
-    in epollfd_encode( pfep | fd )
+    in if fd > 0
+       then 
+          let
+              prval Some_v( pfep ) = pf
+           in epollfd_encode( pfep | fd )
+          end
+       else $raise EpollCreateExn()
+          where {
+              prval None_v(  ) = pf
+
+          }
     end
 
 implement
@@ -40,8 +51,14 @@ epollfd_close_exn(efd)
       val (pfep | fd ) = epollfd_decode( efd )  
       val ( pf | err ) = epollfd_close( pfep | fd )
       val () = assertloc( err = 0 )
-      prval None_v() = pf  
-     in ()
+     in if err = 0 
+        then { 
+            prval None_v() = pf  
+          }
+        else $raise EpollCloseExn(epollfd_encode( pfep | fd ))
+          where {
+            prval Some_v(pfep) = pf  
+          }
     end
 
 implement
