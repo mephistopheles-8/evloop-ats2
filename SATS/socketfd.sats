@@ -53,7 +53,7 @@ prfn sockopt_unsome{st:status}{fd:int}( &sockopt(fd,st,true) >> socketfd(fd,st))
   : void
 
 
-prfn sockopt_unnone{st:status}( &sockopt(st,false) >> socketfd0? )
+prfn sockopt_unnone{st:status}{fd:int}( &sockopt(fd,st,false) >> socketfd(fd,st)? )
   : void
 
 

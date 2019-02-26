@@ -26,15 +26,24 @@ fun {}
 
 fun {}
   async_tcp_pool_add{fd:int}
-  ( !async_tcp_pool, &socketfd(fd,conn) >> opt(socketfd(fd,conn),~b), async_tcp_event )
+  ( &async_tcp_pool, &socketfd(fd,conn) >> sockopt(fd,conn,~b), async_tcp_event )
   : #[b:bool] bool b 
 
 
 fun {}
+  async_tcp_pool_add_exn{fd:int}
+  ( &async_tcp_pool, socketfd(fd,conn), async_tcp_event )
+  : void
+
+fun {}
   async_tcp_pool_del{fd:int}
-  ( !async_tcp_pool, &socketfd(fd,conn) >> opt(socketfd(fd,conn),~b) )
+  ( &async_tcp_pool, &socketfd(fd,conn) >> sockopt(fd,conn,~b) )
   : #[b:bool] bool b
 
+fun {}
+  async_tcp_pool_del_exn{fd:int}
+  ( &async_tcp_pool, socketfd(fd,conn)  )
+  : void
 
 (** user **)
 fun {env:vt@ype+} 
@@ -54,5 +63,5 @@ fun {env:vt@ype+}
 
 fun {env:vt@ype+} 
   async_tcp_pool_process{fd:int}
-  ( async_tcp_event, socketfd(fd,conn), &env >> _ )
+  ( &async_tcp_pool, async_tcp_event, socketfd(fd,conn), &env >> _ )
   : void

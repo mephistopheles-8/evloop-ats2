@@ -16,10 +16,10 @@ eek_has( e1,e2 )
 
 
 implement
-epollfd_add0( efd, sfd )
+epollfd_add0( efd, sfd, events )
   = let
       var event = (@{
-          events = EPOLLIN lor EPOLLET
+          events = events
         , data = epoll_data_socketfd( sfd )   
         }): epoll_event
      in epoll_ctl( efd, EPOLL_CTL_ADD, sfd, event )

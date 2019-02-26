@@ -52,7 +52,7 @@ server_loop
                     implement(efd)
                     socketfd_accept_all$withfd<epollfd(efd)>(cfd,efd) =
                       let
-                        val (pf | err) = epollfd_add1( efd, cfd ) 
+                        val (pf | err) = epollfd_add1( efd, cfd, EPOLLIN lor EPOLLET ) 
                         val () = assertloc( err = 0 )
                         prval Some_v( pfadd ) = pf 
                         prval () = epoll_add_sfd_elim( pfadd , cfd )
@@ -112,7 +112,7 @@ server_loop
         end
 
 
-      val () = assertloc( epollfd_add0( efd, sfd ) = 0 )
+      val () = assertloc( epollfd_add0( efd, sfd, EPOLLIN lor EPOLLET ) = 0 )
     
     in
        loop_epoll( sfd, efd, ebuf, i2sz(MAXEVTS), buf, i2sz(BUFSZ) ); 
