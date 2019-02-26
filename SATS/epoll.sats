@@ -70,6 +70,9 @@ epoll_epollfd{fd:int}( epoll_v(fd) | epoll(fd) )
 
 vtypedef epollfd = [fd:int] epollfd(fd)
 
+exception EpollCreateExn
+exception EpollCloseExn of (epollfd)
+
 viewdef ptr_v_1 (a:t@ype, l:addr) = a @ l
 
 typedef epoll_data = $extype_struct"union epoll_data" of {

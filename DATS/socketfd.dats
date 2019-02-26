@@ -25,9 +25,10 @@ macdef O_NONBLOCK = $extval(fcntlflags, "O_NONBLOCK")
 
 staload "./../SATS/socketfd.sats"
 
+#ifdef _ASYNCNET_LINK
 exception SocketfdCreateExn
 exception SocketfdCloseExn of socketfd0
-
+#endif
 
 implement
 socketfd_create( sfd, af, st )

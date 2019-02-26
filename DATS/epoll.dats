@@ -6,8 +6,10 @@ staload "libats/libc/SATS/sys/socket.sats"
 staload "./../SATS/socketfd.sats"
 staload "./../SATS/epoll.sats"
 
+#ifdef _ASYNCNET_LINK
 exception EpollCreateExn
 exception EpollCloseExn of (epollfd)
+#endif
 
 implement
 epoll_event_kind_lor( e1, e2 ) =
