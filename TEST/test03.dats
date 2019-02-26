@@ -85,38 +85,6 @@ async_tcp_pool_close_exn( pool ) =
   end
 
 
-fun test_bufptr () =
-  let
-
-    var ints = @[int][1024](0)
-    var buf = @[byte][1024](i2byte(0))
-
-    vtypedef mystate = @{
-      buf = bufptr(byte,buf,1024)
-    }
-
-
-  
-    implement
-    array_foreach$fwork<int><mystate>(x,env) =
-      let
-      in
-      end
-
-    
-    var ms = (@{
-      buf = bufptr_encode( view@buf | addr@buf )
-    }) : mystate
-
-    val _ = array_foreach_env<int><mystate>(ints,i2sz(1024),ms)
-
-    val ( pf | p0 ) = bufptr_decode( ms.buf )
-    prval () = view@buf := pf 
-
-  in
-  end
-
-
 implement {}
 async_tcp_pool_add{fd}( pool, cfd, evts ) =
   let
@@ -308,7 +276,7 @@ implement main0 () = println!("Hello [test03]")
                 then
                     let
                       val () =  println!("Serving client")
-                      val ssz = socketfd_write_string( cfd, "Hello guys", i2sz(10) ) 
+                      val ssz = socketfd_write_string( cfd, "HTTP/2.0 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 10\r\n\r\nHello guys", i2sz(75) ) 
                       val () = println!("Closing");
                      in async_tcp_pool_del_exn<>( pool, cfd )
                     end
