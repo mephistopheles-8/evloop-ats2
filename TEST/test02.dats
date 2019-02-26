@@ -2,6 +2,16 @@
 #include "share/atspre_staload.hats"
 #include "./../mylibies_link.hats"
 
+absvt@ype
+epollfd_out(fd:int)
+
+extern castfn 
+epollfd_take{fd:int}( !epollfd(fd) >> epollfd_out(fd) ) : epollfd(fd)
+
+extern prfn
+epollfd_put{fd:int}( !epollfd_out(fd) >> epollfd(fd), epollfd(fd) ) : void
+
+
 fun 
 server_loop
   ( sfd: !socketfd1(listen) )
@@ -49,11 +59,11 @@ server_loop
                       in ()
                       end 
 
-                    var efd0 = $UNSAFE.castvwtp1{epollfd(efd)}(efd)
+                    var efd0 = epollfd_take(efd)
 
                     val ()   = socketfd_accept_all<epollfd(efd)>(sfd,efd0)
 
-                    val () = $UNSAFE.castvwtp0{void}(efd0)
+                    prval () = epollfd_put(efd,efd0)
                   }
                 else 
                   let
