@@ -8,6 +8,7 @@ staload "./../SATS/socketfd.sats"
 staload "./../SATS/epoll.sats"
 staload "./../SATS/async_tcp_pool.sats"
 
+(** FIXME: this should be a parameter **)
 #define MAXEVENTS 64
 
 absimpl
