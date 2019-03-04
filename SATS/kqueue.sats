@@ -59,13 +59,16 @@ macdef EV_ERROR = $extval(kevent_status, "EV_ERROR")
  */
 
 sortdef fflag_sort = int
-stadef ff_rw = 0
-stadef ff_vnode = 1
-stadef ff_proc = 2
-stadef ff_device = 3
+stadef ff_empty = 0
+stadef ff_rw = 1
+stadef ff_vnode = 2
+stadef ff_proc = 3
+stadef ff_device = 4
 
 abst@ype kevent_fflag(fflag_sort) = uint
 typedef kevent_fflag = [ff: fflag_sort] kevent_fflag(ff)
+
+macdef kevent_fflag_empty = $extval(kevent_fflag(ff_empty), "0")
  
 macdef NOTE_LOWAT = $extval(kevent_fflag(ff_rw), "NOTE_LOWAT")
 macdef NOTE_EOF = $extval(kevent_fflag(ff_rw), "NOTE_EOF")
