@@ -3,6 +3,10 @@
 
 staload "libats/libc/SATS/sys/socket.sats"
 staload "libats/libc/SATS/netinet/in.sats"
+staload "libats/libc/SATS/unistd.sats"
+staload "libats/SATS/athread.sats"
+staload _ = "libats/DATS/athread.dats"
+staload _ = "libats/DATS/athread_posix.dats"
 
 staload "./../SATS/socketfd.sats"
 staload "./../SATS/epoll.sats"
@@ -11,6 +15,8 @@ staload "./../SATS/async_tcp_pool.sats"
 (** FIXME: this should be a parameter **)
 #define MAXEVENTS 64
 
+(** FIXME: each thread needs a local ebuf... **)
+(** FIXME: number of threads should be a parameter **)
 absimpl
 async_tcp_pool = @{
    lfd = socketfd1(listen)
@@ -246,8 +252,35 @@ async_tcp_pool_run( pool, env )
           
         in loop_epoll( pool, env )
         end
-    
-    in
-       loop_epoll( pool, env ); 
+      (*
+      (** FIXME: Attempt at threading**) 
+      fun spawn_threads{n:nat} .<n>. ( pool: &async_tcp_pool, env: &env >> _ , n_threads : size_t n) 
+        : void =
+        if n_threads > 0
+        then
+          let
+            val p = $UNSAFE.castvwtp1{async_tcp_pool}(pool)
+            val e = $UNSAFE.castvwtp1{env}(env)
+            val _ = athread_create_cloptr_exn<>(
+              llam() => 
+                let 
+                  var rpool = p
+                  var renv = e    
+                in 
+                  loop_epoll( rpool, renv );
+                  $UNSAFE.cast2void(rpool);
+                  $UNSAFE.cast2void(renv);
+                end
+             );
+          in  
+            spawn_threads( pool, env, n_threads - 1)  
+          end
+        else ()
+     
+    in spawn_threads( pool, env, i2sz(4));
+      while (true) (ignoret(sleep(1000)));
+      *)
+    in 
+      loop_epoll( pool, env )
     end 
 

@@ -5,6 +5,11 @@
 staload "libats/libc/SATS/sys/socket.sats"
 staload "libats/libc/SATS/netinet/in.sats"
 
+staload "libats/SATS/athread.sats"
+staload _ = "libats/DATS/athread.dats"
+staload _ = "libats/DATS/athread_posix.dats"
+
+
 staload "./SATS/socketfd.sats"
 staload "./SATS/bufptr.sats"
 staload _ = "./DATS/socketfd.dats"

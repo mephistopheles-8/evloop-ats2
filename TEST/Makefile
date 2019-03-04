@@ -21,7 +21,7 @@ test02: test02.dats ; $(PATSCC) -DATS ASYNCNET_EPOLL $(PATSFLAGS) $(CFLAGS) -o $
 cleanall:: ; $(RMF) test02
 
 all:: test03
-test03: test03.dats ; $(PATSCC) -DATS ASYNCNET_EPOLL $(PATSFLAGS) $(CFLAGS) -o $@ $< 
+test03: test03.dats ; $(PATSCC) -DATS ASYNCNET_EPOLL $(PATSFLAGS) $(CFLAGS) -o $@ $< -lpthread 
 cleanall:: ; $(RMF) test03
 
 

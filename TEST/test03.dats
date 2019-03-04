@@ -15,9 +15,6 @@ implement main0 () = println!("Hello [test03]")
       , backlog = 24
       } : async_tcp_params)
 
-    var buf = @[byte][BUFSZ](i2byte(0))
-    var bp = bufptr_encode( view@buf | addr@buf ) 
-    prval v = view@bp
     val () =
       if async_tcp_pool_create( p, params ) 
       then
@@ -25,12 +22,12 @@ implement main0 () = println!("Hello [test03]")
           prval () = opt_unsome( p )
 
           implement
-          async_tcp_pool_process<bufptr(byte,buf,BUFSZ)>( pool, evts, cfd, bp ) =
+          async_tcp_pool_process<int>( pool, evts, cfd, bp ) =
             let
-              val (pf | p) = bufptr_decode( bp )
              
+              var buf = @[byte][BUFSZ](i2byte(0))
               val () =
-                if  socketfd_read( cfd, !p, i2sz(BUFSZ) ) >= 0
+                if  socketfd_read( cfd, buf, i2sz(BUFSZ) ) >= 0
                 then
                     let
                       val () =  println!("Serving client")
@@ -40,13 +37,12 @@ implement main0 () = println!("Hello [test03]")
                     end
                 else async_tcp_pool_del_exn<>( pool, cfd )
                  
-              val () = bp := bufptr_encode( pf | p )
             in
             end
 
           val () = println!("Created TCP pool")
           var x : int = 0
-          val () = async_tcp_pool_run<bufptr(byte,buf,BUFSZ)>(p, bp)
+          val () = async_tcp_pool_run<int>(p, x)
         in async_tcp_pool_close_exn( p ) 
         end
       else 
@@ -54,8 +50,5 @@ implement main0 () = println!("Hello [test03]")
           prval () = opt_unnone( p ) 
         in println!("Failed to create TCP pool")
         end
-    prval () = view@bp := v
 
-    val (pf | _) = bufptr_decode( bp ) 
-    prval () = view@buf := pf
   }

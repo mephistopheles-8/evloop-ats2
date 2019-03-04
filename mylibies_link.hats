@@ -2,9 +2,14 @@
 #ifndef _ASYNCNET_LINK
 #define _ASYNCNET_LINK
 
+%{#
+#include <pthread.h>
+%}
+
 local
 #include "./DATS/socketfd.dats"
 in end
+
 
 #ifdef ASYNCNET_EPOLL
 local
