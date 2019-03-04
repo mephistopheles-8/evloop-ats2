@@ -120,6 +120,7 @@ typedef socketfd_create_bind_params = @{
     af= sa_family_t
   , st= socktype_t
   , nonblocking = bool
+  , reuseaddr   = bool
   , port= int
   , address = in_addr_nbo_t
 }
@@ -143,6 +144,7 @@ typedef socketfd_setup_params = @{
     af = sa_family_t
   , st = socktype_t
   , nonblocking = bool
+  , reuseaddr   = bool
   , port = int
   , address = in_addr_nbo_t
   , backlog = intGt(0)

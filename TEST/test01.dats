@@ -56,6 +56,7 @@ implement main0 ()
         af = AF_INET
       , st = SOCK_STREAM
       , nonblocking = false 
+      , reuseaddr   = true 
       , port = PORT
       , address = in_addr_hbo2nbo (INADDR_ANY)
       , backlog = BACKLOG

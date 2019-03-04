@@ -12,11 +12,10 @@ staload "./../SATS/socketfd.sats"
 staload "./../SATS/epoll.sats"
 staload "./../SATS/async_tcp_pool.sats"
 
-(** FIXME: this should be a parameter **)
-#define MAXEVENTS 64
+(** FIXME: Replace assertloc with proper exceptions **)
+(** FIXME: Make threading optional **)
+(** FIXME: Make sure env is handled safely when threading is enabled **)
 
-(** FIXME: each thread needs a local ebuf... **)
-(** FIXME: number of threads should be a parameter **)
 absimpl
 async_tcp_pool = @{
    lfd = socketfd1(listen)
@@ -31,7 +30,8 @@ async_tcp_params = @{
   , address = in_addr_nbo_t
   , backlog = intGt(0)
   , maxevents = sizeGt(0)
-  , threads   = sizeGt(0) 
+  , threads   = sizeGt(0)
+  , reuseaddr = bool 
   }
 
 absimpl
@@ -45,6 +45,7 @@ async_tcp_pool_create( pool, params ) =
           af = AF_INET
         , st = SOCK_STREAM
         , nonblocking = true 
+        , reuseaddr   = params.reuseaddr 
         , port = params.port
         , address = params.address
         , backlog = params.backlog
@@ -256,14 +257,20 @@ async_tcp_pool_run( pool, env )
         in loop_epoll( pool,ebuf,ebsz, env )
         end
 
-      (** FIXME: Attempt at threading**) 
-      fun spawn_threads{n:nat} .<n>. ( pool: &async_tcp_pool, env: &env >> _ , n_threads : size_t n) 
-        : void =
+      fun spawn_threads{n:nat} .<n>. (
+            pool: &async_tcp_pool
+          , env: &env >> _ 
+          , n_threads : size_t n
+        ): void =
         if n_threads > 0
         then
           let
+            (** This cast should be benign **)
             val p = $UNSAFE.castvwtp1{async_tcp_pool}(pool)
+
+            (** FIXME: This cast is unsafe **)
             val e = $UNSAFE.castvwtp1{env}(env)
+
             val _ = athread_create_cloptr_exn<>(
               llam() => 
                 let 

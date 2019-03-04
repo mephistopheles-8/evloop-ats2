@@ -15,6 +15,7 @@ implement main0 () = println!("Hello [test03]")
       , backlog = 24
       , maxevents = i2sz(64)
       , threads = i2sz(4)
+      , reuseaddr = true
       } : async_tcp_params)
 
     val () =
@@ -44,6 +45,7 @@ implement main0 () = println!("Hello [test03]")
           val () = println!("Created TCP pool on port ", params.port )
           var x : int = 0
           val () = async_tcp_pool_run<int>(p, x)
+
         in async_tcp_pool_close_exn( p ) 
         end
       else 

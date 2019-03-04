@@ -30,6 +30,14 @@ exception SocketfdCreateExn
 exception SocketfdCloseExn of socketfd0
 #endif
 
+
+macdef SO_REUSEADDR = $extval(int, "SO_REUSEADDR")
+macdef SOL_SOCKET = $extval(int, "SOL_SOCKET")
+
+extern
+fn setsockopt( int, int, int, &int, size_t (sizeof(int)) ) : int = "mac#"
+
+
 implement
 socketfd_create( sfd, af, st )
   = let
@@ -152,7 +160,14 @@ socketfd_create_bind_port(sfd,p)
         let
           prval () = sockopt_unsome(sfd)
 
-          prval prv = view@sfd          
+          prval prv = view@sfd         
+          val () = 
+            if p.reuseaddr
+            then 
+                { var n : int = 1 
+                  val _ = assertloc( setsockopt( $UNSAFE.castvwtp1{int}(sfd), SOL_SOCKET, SO_REUSEADDR, n, sizeof<int> ) > ~1 )
+                }
+            else () 
           val () = 
             if p.nonblocking 
             then  assertloc( socketfd_set_nonblocking( sfd ) ) 
