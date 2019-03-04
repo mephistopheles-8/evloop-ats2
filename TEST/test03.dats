@@ -13,6 +13,8 @@ implement main0 () = println!("Hello [test03]")
         port = 8888
       , address = in_addr_hbo2nbo (INADDR_ANY)
       , backlog = 24
+      , maxevents = i2sz(64)
+      , threads = i2sz(4)
       } : async_tcp_params)
 
     val () =
@@ -22,7 +24,7 @@ implement main0 () = println!("Hello [test03]")
           prval () = opt_unsome( p )
 
           implement
-          async_tcp_pool_process<int>( pool, evts, cfd, bp ) =
+          async_tcp_pool_process<int>( pool, evts, cfd, env ) =
             let
              
               var buf = @[byte][BUFSZ](i2byte(0))
@@ -30,9 +32,8 @@ implement main0 () = println!("Hello [test03]")
                 if  socketfd_read( cfd, buf, i2sz(BUFSZ) ) >= 0
                 then
                     let
-                      val () =  println!("Serving client")
-                      val ssz = socketfd_write_string( cfd, "HTTP/2.0 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 10\r\n\r\nHello guys", i2sz(75) ) 
-                      val () = println!("Closing");
+                      val ssz = socketfd_write_string( 
+                        cfd, "HTTP/2.0 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 10\r\n\r\nHello guys", i2sz(75) ) 
                      in async_tcp_pool_del_exn<>( pool, cfd )
                     end
                 else async_tcp_pool_del_exn<>( pool, cfd )
@@ -40,7 +41,7 @@ implement main0 () = println!("Hello [test03]")
             in
             end
 
-          val () = println!("Created TCP pool")
+          val () = println!("Created TCP pool on port ", params.port )
           var x : int = 0
           val () = async_tcp_pool_run<int>(p, x)
         in async_tcp_pool_close_exn( p ) 

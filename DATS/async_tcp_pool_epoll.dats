@@ -20,8 +20,9 @@ staload "./../SATS/async_tcp_pool.sats"
 absimpl
 async_tcp_pool = @{
    lfd = socketfd1(listen)
- , efd = epollfd 
- , ebuf = arrayptr(epoll_event, MAXEVENTS)
+ , efd = epollfd
+ , maxevents = sizeGt(0)
+ , threads   = sizeGt(0) 
 }
 
 absimpl
@@ -29,6 +30,8 @@ async_tcp_params = @{
     port = int
   , address = in_addr_nbo_t
   , backlog = intGt(0)
+  , maxevents = sizeGt(0)
+  , threads   = sizeGt(0) 
   }
 
 absimpl
@@ -64,7 +67,8 @@ async_tcp_pool_create( pool, params ) =
                       pool := (@{    
                           lfd = sfd
                         , efd = efd
-                        , ebuf = arrayptr_make_elt( i2sz(MAXEVENTS), epoll_event_empty() )
+                        , maxevents = params.maxevents
+                        , threads   = params.threads
                        })
                     prval () = opt_some(pool) 
                  in true
@@ -91,7 +95,6 @@ async_tcp_pool_close_exn( pool ) =
     val () =
       ( epollfd_close_exn( pool.efd ); 
         socketfd_close_exn( pool.lfd );
-        free( pool.ebuf ) 
       )
   in 
   end
@@ -179,16 +182,17 @@ implement  {env}
 async_tcp_pool_run( pool, env )  
   = let
       fun loop_evts
-        {em:nat | em <= MAXEVENTS}
+        {n,m:nat | m <= n}
       (
         pool : &async_tcp_pool
+      , ebuf : &(@[epoll_event][n])
+      , nevts : size_t m
       , env  : &env >> _
-      , esz : size_t em
       ) : void =  
-        if esz > 0
+        if nevts > 0
         then
           let
-            val evt = arrayptr_get_at<epoll_event>( pool.ebuf, esz-1 )
+            val evt = ebuf[ nevts-1 ] 
             val fd = evt.data.fd
             val events = evt.events
             
@@ -230,29 +234,28 @@ async_tcp_pool_run( pool, env )
                   }
                | _ => async_tcp_pool_process<env>(pool, events, client_sock, env )  
 
-             in loop_evts(pool,env,esz-1)
+             in loop_evts(pool,ebuf,nevts-1,env)
             end
           else ()
  
-      and loop_epoll(
+      and loop_epoll{n,m:nat | m <= n}(
         pool : &async_tcp_pool
+      , ebuf : &(@[epoll_event][n])
+      , ebsz : size_t m
       , env  : &env >> _
       ) : void = 
         let
-          val (pf | p) = arrayptr_takeout_viewptr( pool.ebuf )
-          val n = epoll_wait(pool.efd, !p, MAXEVENTS, ~1)
-          prval () = arrayptr_addback( pf | pool.ebuf )
+          val n = epoll_wait(pool.efd, ebuf, sz2i(ebsz), ~1)
           
-
           val () = assertloc( n >= 0 )
           
           var i : [i:nat] int i
   
-          val () = loop_evts(pool,env,i2sz(n))
+          val () = loop_evts(pool,ebuf,i2sz(n),env)
           
-        in loop_epoll( pool, env )
+        in loop_epoll( pool,ebuf,ebsz, env )
         end
-      (*
+
       (** FIXME: Attempt at threading**) 
       fun spawn_threads{n:nat} .<n>. ( pool: &async_tcp_pool, env: &env >> _ , n_threads : size_t n) 
         : void =
@@ -265,9 +268,14 @@ async_tcp_pool_run( pool, env )
               llam() => 
                 let 
                   var rpool = p
-                  var renv = e    
+                  var renv = e   
+                  val maxevts = rpool.maxevents 
+                  val ebuf = arrayptr_make_elt<epoll_event>( maxevts, epoll_event_empty())
+                  val (pf | par ) = arrayptr_takeout_viewptr( ebuf ) 
                 in 
-                  loop_epoll( rpool, renv );
+                  loop_epoll( rpool, !par, maxevts, renv );
+                  () where { prval () = arrayptr_addback( pf | ebuf ) };
+                  free( ebuf );
                   $UNSAFE.cast2void(rpool);
                   $UNSAFE.cast2void(renv);
                 end
@@ -277,10 +285,11 @@ async_tcp_pool_run( pool, env )
           end
         else ()
      
-    in spawn_threads( pool, env, i2sz(4));
+    in spawn_threads( pool, env, pool.threads);
       while (true) (ignoret(sleep(1000)));
-      *)
+    (*
     in 
       loop_epoll( pool, env )
+    *)
     end 
 
