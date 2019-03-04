@@ -12,6 +12,9 @@ staload _ = "./DATS/socketfd.dats"
 #ifdef ASYNCNET_EPOLL
 staload "./SATS/epoll.sats"
 staload _ = "./DATS/epoll.dats"
+#elifdef ASYNCNET_KQUEUE
+staload "./SATS/kqueue.sats"
+staload _ = "./DATS/kqueue.dats"
 #endif
 
 staload "./SATS/async_tcp_pool.sats"

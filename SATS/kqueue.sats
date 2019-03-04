@@ -111,7 +111,7 @@ typedef kevent = $extype_struct "struct kevent" of {
   , udata= ptr 
 }
 
-fn kevent_data_empty( ):  kevent_data
+macdef kevent_data_empty = $extval(kevent_data, "0")
 
 
 absvt@ype kqueuefd(int) = int
@@ -120,6 +120,10 @@ abst@ype kqueue(int) = int
 vtypedef kqueuefd = [fd:int] kqueuefd(fd)
 
 absview kqueue_v( fd:int )
+
+
+exception KqueueCreateExn
+exception KqueueCloseExn
 
 castfn kqueuefd_encode{fd:int}
   ( kqueue_v(fd) | int fd ) 
@@ -175,7 +179,7 @@ fn kqueue_close{fd:int}( kqueue_v(fd) | int fd  )
     ( option_v(kqueue_v(fd), err == ~1) | int err ) = "mac#close"
 
 fn kqueuefd_close{fd:int}
-  ( kfd: &kqueuefd(fd) >> opt(kqueue(fd), ~b) ) 
+  ( kfd: &kqueuefd(fd) >> opt(kqueuefd(fd), ~b) ) 
   : #[b:bool] bool b
  
 fn kqueuefd_close_exn{fd:int}( kqueuefd(fd) ) : void

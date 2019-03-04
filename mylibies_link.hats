@@ -10,6 +10,10 @@ in end
 local
 #include "./DATS/epoll.dats"
 in end
+#elifdef ASYNCNET_KQUEUE
+local
+#include "./DATS/kqueue.dats"
+in end
 #endif
 
 #include "./mylibies.hats"
