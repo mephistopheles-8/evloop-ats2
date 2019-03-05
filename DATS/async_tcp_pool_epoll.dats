@@ -146,7 +146,6 @@ implement {}
 async_tcp_pool_add_exn{fd}( pool, cfd, evts ) =
   let
     var cfd = cfd
-    val () = assertloc( socketfd_set_nonblocking( cfd ) )
     val () = assertloc( async_tcp_pool_add<>(pool,cfd,evts) )
     prval () = sockopt_unnone(cfd) 
   in
