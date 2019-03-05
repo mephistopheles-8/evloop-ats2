@@ -89,8 +89,8 @@ fun socketfd_create
   ) : #[b:bool] bool b
 
 fun socketfd_set_nonblocking
-  {fd:int}
-  ( sfd: &socketfd(fd,init)
+  {fd:int}{st:status}
+  ( sfd: &socketfd(fd,st)
   ) : bool
 
 fun socketfd_create_exn

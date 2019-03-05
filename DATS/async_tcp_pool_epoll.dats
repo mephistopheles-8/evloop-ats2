@@ -103,24 +103,28 @@ async_tcp_pool_close_exn( pool ) =
 
 implement {}
 async_tcp_pool_add{fd}( pool, cfd, evts ) =
-  let
-    val (pf | err) = epollfd_add1( pool.efd, cfd, evts lor EPOLLONESHOT ) 
-  in if err = 0
-     then 
-        let
-          prval Some_v( pfadd ) = pf 
-          prval () = epoll_add_sfd_elim( pfadd , cfd )
-          prval () = sockopt_none( cfd )
-        in true
-        end
-      else
-        let
-          prval None_v( ) = pf 
-          prval () = sockopt_some( cfd )
-        in false
-        end
-  end 
-
+  if socketfd_set_nonblocking( cfd )
+  then
+    let
+      val (pf | err) = epollfd_add1( pool.efd, cfd, evts lor EPOLLONESHOT ) 
+    in if err = 0
+       then 
+          let
+            prval Some_v( pfadd ) = pf 
+            prval () = epoll_add_sfd_elim( pfadd , cfd )
+            prval () = sockopt_none( cfd )
+          in true
+          end
+        else
+          let
+            prval None_v( ) = pf 
+            prval () = sockopt_some( cfd )
+          in false
+          end
+    end 
+  else false where {
+    prval () = sockopt_some( cfd )
+  }
  
 implement {}
 async_tcp_pool_del{fd}( pool, cfd ) =
@@ -142,6 +146,7 @@ implement {}
 async_tcp_pool_add_exn{fd}( pool, cfd, evts ) =
   let
     var cfd = cfd
+    val () = assertloc( socketfd_set_nonblocking( cfd ) )
     val () = assertloc( async_tcp_pool_add<>(pool,cfd,evts) )
     prval () = sockopt_unnone(cfd) 
   in
