@@ -35,7 +35,7 @@ macdef EVFILT_SYSCOUNT = $extval(evfilt, "EVFILT_SYSCOUNT")
 
 macdef evfilt_empty = $extval(evfilt, "0")
 
-castfn evfilt2uint( evfilt ) : uint
+castfn evfilt2uint( evfilt ) :<> uint
 
 fn lor_evfilt_evfilt( evfilt, evfilt ) :<> evfilt
 fn land_evfilt_evfilt( evfilt, evfilt ) :<> evfilt
@@ -53,7 +53,7 @@ macdef EV_DELETE = $extval(kevent_action, "EV_DELETE")
 macdef EV_ENABLE = $extval(kevent_action, "EV_ENABLE")
 macdef EV_DISABLE = $extval(kevent_action, "EV_DISABLE")
 
-castfn kevent_action_usint( kevent_action ) : usint
+castfn kevent_action_usint( kevent_action ) :<> usint
 
 fn kevent_action_land( kevent_action, kevent_action ) :<> kevent_action
 fn kevent_action_lor( kevent_action, kevent_action ) :<> kevent_action
@@ -74,7 +74,7 @@ macdef EV_FLAG1 = $extval(kevent_flag, "EV_FLAG1")
 
 macdef kevent_flag_empty = $extval(kevent_flag, "0")
 
-castfn kevent_flag_usint( kevent_flag ) : usint
+castfn kevent_flag_usint( kevent_flag ) :<> usint
 
 fn kevent_flag_land( kevent_flag, kevent_flag ) :<> kevent_flag
 fn kevent_flag_lor( kevent_flag, kevent_flag ) :<> kevent_flag
@@ -88,8 +88,8 @@ abst@ype kevent_status = usint
 macdef EV_EOF = $extval(kevent_status, "EV_EOF")
 macdef EV_ERROR = $extval(kevent_status, "EV_ERROR")
 
-castfn kevent_status_usint( kevent_status ) : usint
-castfn flags2status( kevent_flag ) : kevent_status
+castfn kevent_status_usint( kevent_status ) :<> usint
+castfn flags2status( kevent_flag ) :<> kevent_status
 
 fn kevent_status_land( kevent_status, kevent_status ) :<> kevent_status
 fn kevent_status_lor( kevent_status, kevent_status ) :<> kevent_status
@@ -148,7 +148,7 @@ macdef NOTE_CHILD = $extval(kevent_fflag(ff_proc), "NOTE_CHILD")
 macdef NOTE_CHANGE = $extval(kevent_fflag(ff_device), "NOTE_CHANGE")
 
 
-castfn kevent_fflag_usint( kevent_fflag ) : uint
+castfn kevent_fflag_uint( kevent_fflag ) :<> uint
 
 fn kevent_fflag_land( kevent_fflag, kevent_fflag ) :<> kevent_fflag
 fn kevent_fflag_lor( kevent_fflag, kevent_fflag ) :<> kevent_fflag
@@ -202,7 +202,7 @@ kqueue_kqueuefd{fd:int}( kqueue_v(fd) | kqueue(fd) )
 
 
 fn EV_SET(
-    kevp : &kevent
+    kevp : &kevent? >> kevent
   , ident: !socketfd0
   , filter:evfilt
   , flags: kevent_action
@@ -267,16 +267,16 @@ fn kqueuefd_close{fd:int}
 fn kqueuefd_close_exn{fd:int}( kqueuefd(fd) ) : void
 
 
-fn kqueuefd_add0( kfd: !kqueuefd, sfd: !socketfd0, kevent_action ) 
+fn kqueuefd_add0( kfd: !kqueuefd, sfd: !socketfd0, evfilt, kevent_action ) 
   : intBtwe(~1,0) = "ext#%"
 
 
 absprop kqueue_add_v(fd:int, st:status)
 
-fn kqueuefd_add1{kfd,fd:int}{st:status}( kfd: !kqueuefd(kfd), sfd: !socketfd(fd,st), kevent_action ) 
+fn kqueuefd_add1{kfd,fd:int}{st:status}( kfd: !kqueuefd(kfd), sfd: !socketfd(fd,st), evfilt, kevent_action ) 
   : [err: int | err >= ~1; err <= 0]
     (option_v(kqueue_add_v(fd,st), err == 0) | int err )
-  = "mac#%kqueukfd_add0"
+  = "mac#%kqueuefd_add0"
 
 prfn kqueue_add_elim{fd:int}{st:status}( kqueue_add_v(fd,st) ) : void
 

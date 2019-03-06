@@ -67,7 +67,7 @@ async_tcp_pool_create( pool, params ) =
                 let
                     prval Some_v(pep) =  pep
                     val kfd = kqueuefd_encode( pep | kfd ) 
-                    val () = assertloc( kqueuefd_add0( kfd, sfd, EV_ADD ) = 0 )
+                    val () = assertloc( kqueuefd_add0( kfd, sfd, EVFILT_READ, EV_ADD ) = 0 )
                     val () =
                       pool := (@{    
                           lfd = sfd
@@ -108,7 +108,7 @@ async_tcp_pool_close_exn( pool ) =
 implement {}
 async_tcp_pool_add{fd}( pool, cfd, evts ) =
   let
-    val (pf | err) = kqueuefd_add1( pool.kfd, cfd, evts ) 
+    val (pf | err) = kqueuefd_add1( pool.kfd, cfd, EVFILT_READ, evts ) 
   in if err = 0
      then 
         let
