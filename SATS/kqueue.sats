@@ -4,6 +4,8 @@
  * Userspace Bindings for kqueue.
  *)
 staload "libats/libc/SATS/time.sats"
+staload "libats/libc/SATS/sys/socket.sats"
+staload "./socketfd.sats"
 
 %{#
 #include <sys/event.h>
@@ -31,6 +33,18 @@ macdef EVFILT_DEVICE = $extval(evfilt, "EVFILT_DEVICE")
 
 macdef EVFILT_SYSCOUNT = $extval(evfilt, "EVFILT_SYSCOUNT")
 
+macdef evfilt_empty = $extval(evfilt, "0")
+
+castfn evfilt2uint( evfilt ) : uint
+
+fn lor_evfilt_evfilt( evfilt, evfilt ) :<> evfilt
+fn land_evfilt_evfilt( evfilt, evfilt ) :<> evfilt
+fn evfilt_has( evfilt, evfilt ) :<> [b:bool] bool b
+overload lor with lor_evfilt_evfilt
+overload land with land_evfilt_evfilt
+
+
+
 
 /* actions */
 abst@ype kevent_action = usint
@@ -38,6 +52,15 @@ macdef EV_ADD = $extval(kevent_action, "EV_ADD")
 macdef EV_DELETE = $extval(kevent_action, "EV_DELETE")
 macdef EV_ENABLE = $extval(kevent_action, "EV_ENABLE")
 macdef EV_DISABLE = $extval(kevent_action, "EV_DISABLE")
+
+castfn kevent_action_usint( kevent_action ) : usint
+
+fn kevent_action_land( kevent_action, kevent_action ) :<> kevent_action
+fn kevent_action_lor( kevent_action, kevent_action ) :<> kevent_action
+fn kevent_action_has( kevent_action, kevent_action ) :<> [b:bool] bool b
+
+overload lor with kevent_action_lor
+overload land with kevent_action_land
 
 /* flags */
 abst@ype kevent_flag = usint
@@ -49,10 +72,31 @@ macdef EV_DISPATCH = $extval(kevent_flag, "EV_DISPATCH")
 macdef EV_SYSFLAGS = $extval(kevent_flag, "EV_SYSFLAGS")
 macdef EV_FLAG1 = $extval(kevent_flag, "EV_FLAG1")
 
+macdef kevent_flag_empty = $extval(kevent_flag, "0")
+
+castfn kevent_flag_usint( kevent_flag ) : usint
+
+fn kevent_flag_land( kevent_flag, kevent_flag ) :<> kevent_flag
+fn kevent_flag_lor( kevent_flag, kevent_flag ) :<> kevent_flag
+fn kevent_flag_has( kevent_flag, kevent_flag ) :<> [b:bool] bool b
+
+overload lor with kevent_flag_lor
+overload land with kevent_flag_land
+
 /* returned values */
 abst@ype kevent_status = usint
 macdef EV_EOF = $extval(kevent_status, "EV_EOF")
 macdef EV_ERROR = $extval(kevent_status, "EV_ERROR")
+
+castfn kevent_status_usint( kevent_status ) : usint
+castfn flags2status( kevent_flag ) : kevent_status
+
+fn kevent_status_land( kevent_status, kevent_status ) :<> kevent_status
+fn kevent_status_lor( kevent_status, kevent_status ) :<> kevent_status
+fn kevent_status_has( kevent_status, kevent_status ) :<> [b:bool] bool b
+
+overload lor with kevent_status_lor
+overload land with kevent_status_land
 
 /*
  * data/hint flags for EVFILT_{READ|WRITE}, shared with userspace
@@ -103,7 +147,19 @@ macdef NOTE_CHILD = $extval(kevent_fflag(ff_proc), "NOTE_CHILD")
 /* data/hint flags for EVFILT_DEVICE, shared with userspace */
 macdef NOTE_CHANGE = $extval(kevent_fflag(ff_device), "NOTE_CHANGE")
 
+
+castfn kevent_fflag_usint( kevent_fflag ) : uint
+
+fn kevent_fflag_land( kevent_fflag, kevent_fflag ) :<> kevent_fflag
+fn kevent_fflag_lor( kevent_fflag, kevent_fflag ) :<> kevent_fflag
+fn kevent_fflag_has( kevent_fflag, kevent_fflag ) :<> [b:bool] bool b
+
+overload lor with kevent_fflag_lor
+overload land with kevent_fflag_land
+
+
 abst@ype kevent_data = int64
+macdef kevent_data_empty = $extval(kevent_data, "0")
 
 typedef kevent = $extype_struct "struct kevent" of {
     ident= uintptr
@@ -114,8 +170,7 @@ typedef kevent = $extype_struct "struct kevent" of {
   , udata= ptr 
 }
 
-macdef kevent_data_empty = $extval(kevent_data, "0")
-
+fn kevent_empty() : kevent
 
 absvt@ype kqueuefd(int) = int
 abst@ype kqueue(int) = int
@@ -147,10 +202,10 @@ kqueue_kqueuefd{fd:int}( kqueue_v(fd) | kqueue(fd) )
 
 
 fn EV_SET(
-    kevp : kevent
-  , ident: uintptr
+    kevp : &kevent
+  , ident: !socketfd0
   , filter:evfilt
-  , flags: kevent_flag
+  , flags: kevent_action
   , fflags: kevent_fflag
   , data: kevent_data
   , udata: ptr 
@@ -167,14 +222,38 @@ fn kqueuefd_create
 fn kqueuefd_create_exn()
   : kqueuefd
 
-fn kevent {n,m:nat}
+symintr kevent
+
+fn kevent_arr_arr_timeout {n,m,sn,sm:nat | sn <= n; sm <= m}
 ( kq: !kqueuefd
 , changelist: &(@[kevent][n])
-, nchanges: int n
+, nchanges: int sn
 , eventlist: &(@[kevent][m])
-, nevents: int m
+, nevents: int sm
 , timeout: &timespec   
-): intBtwe(~1,m) = "mac#"
+): intBtwe(~1,sm) = "mac#"
+
+fn kevent_sing_null_null
+( kq: !kqueuefd
+, changelist: &kevent
+, nchanges: int 1
+, eventlist: ptr null
+, nevents: int 0
+, timeout: ptr null 
+): intBtwe(~1,0) = "mac#kevent"
+
+fn kevent_null_arr_null {n,m:nat | m <= n}
+( kq: !kqueuefd
+, changelist: ptr null
+, nchanges: int 0
+, eventlist: &(@[kevent][n])
+, nevents: int m
+, timeout: ptr null 
+): intBtwe(~1,m) = "mac#kevent"
+
+overload kevent with kevent_arr_arr_timeout
+overload kevent with kevent_sing_null_null
+overload kevent with kevent_null_arr_null
 
 
 fn kqueue_close{fd:int}( kqueue_v(fd) | int fd  )  
@@ -186,5 +265,45 @@ fn kqueuefd_close{fd:int}
   : #[b:bool] bool b
  
 fn kqueuefd_close_exn{fd:int}( kqueuefd(fd) ) : void
+
+
+fn kqueuefd_add0( kfd: !kqueuefd, sfd: !socketfd0, kevent_action ) 
+  : intBtwe(~1,0) = "ext#%"
+
+
+absprop kqueue_add_v(fd:int, st:status)
+
+fn kqueuefd_add1{kfd,fd:int}{st:status}( kfd: !kqueuefd(kfd), sfd: !socketfd(fd,st), kevent_action ) 
+  : [err: int | err >= ~1; err <= 0]
+    (option_v(kqueue_add_v(fd,st), err == 0) | int err )
+  = "mac#%kqueukfd_add0"
+
+prfn kqueue_add_elim{fd:int}{st:status}( kqueue_add_v(fd,st) ) : void
+
+prfn kqueue_add_sfd_elim{fd:int}{st:status}( kqueue_add_v(fd,st), socketfd(fd,st) ) : void
+
+
+absprop kevent_v(l:addr, n:int)
+
+fun kevent1 {n,m:nat}{l:addr} 
+  ( pf: (@[kevent][m]) @ l
+  | kq: !kqueuefd
+  , changelist: &(@[kevent][n])
+  , nchanges: int n
+  , eventlist: ptr l 
+  , nevents: int m
+  , timeout: &timespec   
+  ): [o:int | o >= ~1 && o <= m]
+     (option_v(kevent_v(l,o), o > ~1) | int o ) = "mac#kevent"
+
+fun {env: vt@ype+}
+  kevents_foreach$fwork{fd:int}{st:status}
+  ( kqueue_add_v(fd,st) | &kevent, socketfd(fd,st), &env >> _ )
+  : void 
+
+fun {env: vt@ype+}
+  kevents_foreach{n,o:nat | o <= n}{l:addr}
+  ( kevent_v(l,o), !(@[kevent][n] @ l) | ptr l, int o, &env >> _ )
+  : void
 
 

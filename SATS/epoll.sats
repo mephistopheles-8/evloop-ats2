@@ -165,14 +165,6 @@ fn epollfd_close_exn{fd:int}(efd: epollfd(fd))
 
 fn epoll_event_empty () : epoll_event
 
-fn eq_socketfd_int {fd,n:int}{st:status}( sfd : !socketfd(fd,st), n: int n) 
-  :<> [b:bool | b == (fd == n)] bool b 
-
-fn eq_socketfd_socketfd {fd,fd1:int}{st,st1:status}( sfd : !socketfd(fd,st), sfd1 : !socketfd(fd1,st1)) 
-  :<> [b:bool | b == (fd == fd1)] bool b 
-
-overload = with eq_socketfd_int
-overload = with eq_socketfd_socketfd
 
 fn eek_has( e1: epoll_event_kind, e2: epoll_event_kind ) 
   :<> bool

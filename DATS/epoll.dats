@@ -67,12 +67,6 @@ implement
 epoll_event_empty () =
       @{events = $UNSAFE.cast{epoll_event_kind}(0), data = epoll_data_ptr(the_null_ptr) }
 
-implement
-eq_socketfd_int{fd,n}{st}( sfd, n) 
-  = $UNSAFE.castvwtp1{int fd}(sfd) = n
-
-implement eq_socketfd_socketfd{fd,fd1}{st,st1}( sfd, sfd1 ) 
-  = $UNSAFE.castvwtp1{int fd}(sfd) = $UNSAFE.castvwtp1{int fd1}(sfd1)
 
 implement {env}
 epoll_events_foreach( pwait, parr | p, n, env ) 

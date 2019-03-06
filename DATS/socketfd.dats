@@ -320,3 +320,10 @@ socketfd_accept_all{fd:int}( sfd, env )
         end
   end
 
+implement
+eq_socketfd_int{fd,n}{st}( sfd, n) 
+  = $UNSAFE.castvwtp1{int fd}(sfd) = n
+
+implement eq_socketfd_socketfd{fd,fd1}{st,st1}( sfd, sfd1 ) 
+  = $UNSAFE.castvwtp1{int fd}(sfd) = $UNSAFE.castvwtp1{int fd1}(sfd1)
+

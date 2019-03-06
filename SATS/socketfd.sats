@@ -190,3 +190,12 @@ fun {env: vt@ype+} socketfd_accept_all$withfd( cfd: socketfd1(conn), &env >> _ )
 fun {env: vt@ype+} 
 socketfd_accept_all{fd:int}( sfd: !socketfd(fd,listen), env: &env >> _ ) 
   : void
+
+fn eq_socketfd_int {fd,n:int}{st:status}( sfd : !socketfd(fd,st), n: int n) 
+  :<> [b:bool | b == (fd == n)] bool b 
+
+fn eq_socketfd_socketfd {fd,fd1:int}{st,st1:status}( sfd : !socketfd(fd,st), sfd1 : !socketfd(fd1,st1)) 
+  :<> [b:bool | b == (fd == fd1)] bool b 
+
+overload = with eq_socketfd_int
+overload = with eq_socketfd_socketfd
