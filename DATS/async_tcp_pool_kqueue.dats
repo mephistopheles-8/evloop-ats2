@@ -36,10 +36,10 @@ async_tcp_params = @{
 
 absimpl
 async_tcp_event = kevent_action
-
+(*
 absimpl
 kevent_action = kevent_flag
-
+*)
 
   
 implement {}
@@ -107,8 +107,10 @@ async_tcp_pool_close_exn( pool ) =
 
 implement {}
 async_tcp_pool_add{fd}( pool, cfd, evts ) =
+  if socketfd_set_nonblocking( cfd )
+  then
   let
-    val (pf | err) = kqueuefd_add1( pool.kfd, cfd, EVFILT_READ, evts ) 
+    val (pf | err) = kqueuefd_add1( pool.kfd, cfd, EVFILT_READ, evts  lor $UNSAFE.cast{kevent_action}(EV_DISPATCH)  ) 
   in if err = 0
      then 
         let
@@ -124,6 +126,9 @@ async_tcp_pool_add{fd}( pool, cfd, evts ) =
         in false
         end
   end 
+  else false where {
+    prval () = sockopt_some( cfd )
+  }
 
  
 implement {}
@@ -165,7 +170,8 @@ async_tcp_pool_del_exn{fd}( pool, cfd ) =
 
 implement {env}
 async_tcp_pool_hup( pool, cfd, env ) =
-  socketfd_close_exn( cfd )
+  async_tcp_pool_del_exn<>( pool, cfd )
+  (* socketfd_close_exn( cfd ) *)
 
 implement {env}
 async_tcp_pool_error( pool, cfd, env ) =
@@ -238,7 +244,7 @@ async_tcp_pool_run( pool, env )
 
                     prval () = $UNSAFE.cast2void(lfd)
                   }
-               | _ => async_tcp_pool_process<env>(pool, flags, client_sock, env )  
+               | _ => async_tcp_pool_process<env>(pool, $UNSAFE.cast{kevent_action}(flags), client_sock, env )  
 
              in loop_evts(pool,ebuf,nevts-1,env)
             end
@@ -288,8 +294,10 @@ async_tcp_pool_run( pool, env )
                   loop_kqueue( rpool, !par, maxevts, renv );
                   () where { prval () = arrayptr_addback( pf | ebuf ) };
                   free( ebuf );
-                  $UNSAFE.cast2void(rpool);
-                  $UNSAFE.cast2void(renv);
+                  () where { 
+                       prval () = $UNSAFE.cast2void(rpool)
+                       prval () = $UNSAFE.cast2void(renv)
+                     };
                 end
              );
           in  

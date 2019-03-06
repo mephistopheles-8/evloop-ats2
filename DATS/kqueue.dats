@@ -35,7 +35,7 @@ kevent_action_lor( k1, k2 )
 
 implement
 kevent_action_has( k1, k2 ) 
-= g1ofg0( kevent_action_usint( k1 land k2 ) != 0 )
+= g1ofg0( $UNSAFE.cast{int}(( k1 land k2 )) != 0 )
 
 
 implement
@@ -48,7 +48,7 @@ kevent_flag_lor( k1, k2 )
 
 implement
 kevent_flag_has( k1, k2 ) 
-= g1ofg0( kevent_flag_usint( k1 land k2 ) != 0 )
+= g1ofg0( $UNSAFE.cast{int}(( k1 land k2 )) != 0 )
 
 
 implement
@@ -61,7 +61,7 @@ kevent_status_lor( k1, k2 )
 
 implement
 kevent_status_has( k1, k2 ) 
-= g1ofg0( kevent_status_usint( k1 land k2 ) != 0 )
+= g1ofg0( $UNSAFE.cast{int}(( k1 land k2 )) != 0 )
 
 
 implement
@@ -166,7 +166,7 @@ kqueuefd_close_exn( kfd )
         else $raise KqueueCloseExn()
           where {
             prval () = opt_unsome( kfd ) 
-            val () = $UNSAFE.cast2void( kfd )
+            prval () = $UNSAFE.cast2void( kfd )
           } 
     end
 
