@@ -277,7 +277,9 @@ async_tcp_pool_run( pool, env )
               llam() => 
                 let 
                   var rpool = p
-                  val () = rpool.kfd := $UNSAFE.castvwtp0{int}(kqueue_exn())
+                  val kfd = kqueue_exn()
+                  val () = assertloc( kqueuefd_add0( kfd, rpool.lfd, EVFILT_READ, EV_ADD ) = 0 )
+                  val () = rpool.kfd := $UNSAFE.castvwtp0{int}(kfd)
                   var renv = e   
                   val maxevts = rpool.maxevents 
                   val ebuf = arrayptr_make_elt<kevent>( maxevts, kevent_empty())
