@@ -184,6 +184,18 @@ fun socketfd_write_strnptr
   ( pf: !socketfd(fd,conn), buf: !strnptr(n), sz: size_t m )
   : ssizeBtwe(~1,m) = "mac#write"
 
+fun 
+{env:vt@ype+}
+socketfd_readall$fwork{n:nat}( buf: &bytes(n), sz: size_t n, &env >> _ )
+: bool
+
+fun 
+{env:vt@ype+}
+socketfd_readall
+  {fd:int}{n,m:nat | m <= n}
+  ( pf: !socketfd(fd,conn), buf: &bytes(n), sz: size_t m, &env >> _ )
+  : bool
+
 fun {env: vt@ype+} socketfd_accept_all$withfd( cfd: socketfd1(conn), &env >> _ )
   : void 
 

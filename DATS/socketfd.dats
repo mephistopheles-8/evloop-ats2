@@ -17,6 +17,7 @@ staload "libats/libc/SATS/sys/socket.sats"
 staload "libats/libc/SATS/sys/socket_in.sats"
 staload "libats/libc/SATS/netinet/in.sats"
 staload "libats/libc/SATS/fcntl.sats"
+staload "libats/libc/SATS/errno.sats"
 
 staload _ = "libats/libc/DATS/sys/socket.dats"
 
@@ -326,4 +327,26 @@ eq_socketfd_int{fd,n}{st}( sfd, n)
 
 implement eq_socketfd_socketfd{fd,fd1}{st,st1}( sfd, sfd1 ) 
   = $UNSAFE.castvwtp1{int fd}(sfd) = $UNSAFE.castvwtp1{int fd1}(sfd1)
+
+implement {env}
+socketfd_readall( sfd, buf, sz, env ) 
+ = let
+      val ssz = socketfd_read(sfd,buf,sz) 
+    in if  ssz > 0 then 
+        let
+          prval (pf1,pf2) = array_v_split_at( view@buf | g1int2uint(ssz) )
+
+          val b = socketfd_readall$fwork<env>( buf, g1int2uint( ssz ), env )
+
+          prval () = view@buf := array_v_unsplit( pf1, pf2 ) 
+        in if b then  socketfd_readall<env>(sfd,buf,sz,env)
+           else false
+        end
+      else if ssz = ~1 then
+        ifcase
+          | the_errno_test(EAGAIN) =>
+              socketfd_readall<env>( sfd, buf, sz, env ) 
+          | _ => false  
+      else true
+   end
 
