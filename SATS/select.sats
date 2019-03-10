@@ -10,11 +10,17 @@ staload "libats/libc/SATS/time.sats"
 staload "libats/libc/SATS/signal.sats"
 
 (** TODO: Best define a more sane interface **)
-abst@ype fd_set = $extype"fd_set"
+abst@ype fd_set(n:int) = $extype"fd_set"
+typedef fd_set = [n:int] fd_set(n)
 
+sta FD_SETSIZE : int
+
+macdef FD_SETSIZE = $extval(int FD_SETSIZE, "FD_SETSIZE")
+
+ 
 fun select_read_timeout{n,m:nat | m <= n}( 
    nfds: int m
- , readfds:  &(@[fd_set][n])  
+ , readfds:  &fd_set(n) 
  , writefds:  ptr null
  , exceptfds: ptr null
  , timeout : &timeval
@@ -22,7 +28,7 @@ fun select_read_timeout{n,m:nat | m <= n}(
 
 fun select_read{n,m:nat | m <= n}( 
    nfds: int m
- , readfds:  &(@[fd_set][n])  
+ , readfds:  &fd_set(n) 
  , writefds:  ptr null
  , exceptfds: ptr null
  , timeout : ptr null
@@ -31,7 +37,7 @@ fun select_read{n,m:nat | m <= n}(
 fun select_write_timeout{n,m:nat | m <= n}( 
    nfds: int m
  , readfds:  ptr null
- , writefds:  &(@[fd_set][n])  
+ , writefds:  fd_set(n) 
  , exceptfds: ptr null
  , timeout : &timeval
  ): intBtwe(~1,m) = "mac#select" 
@@ -48,7 +54,7 @@ fun select_except_timeout{n,m:nat | m <= n}(
    nfds: int m
  , readfds:  ptr null
  , writefds:  ptr null
- , exceptfds:  &(@[fd_set][n])  
+ , exceptfds:  &fd_set(n) 
  , timeout : &timeval
  ): intBtwe(~1,m) = "mac#select" 
 
@@ -56,7 +62,7 @@ fun select_except{n,m:nat | m <= n}(
    nfds: int m
  , readfds:  ptr null
  , writefds:  ptr null
- , exceptfds:  &(@[fd_set][n])  
+ , exceptfds:  &fd_set(n) 
  , timeout : ptr null
  ): intBtwe(~1,m) = "mac#select" 
 
@@ -70,7 +76,7 @@ overload select with select_except
 
 fun pselect_read_timeout{n,m:nat | m <= n}( 
    nfds: int m
- , readfds:  &(@[fd_set][n])  
+ , readfds:  &fd_set(n) 
  , writefds:  ptr null
  , exceptfds: ptr null
  , timeout : &timespec
@@ -79,7 +85,7 @@ fun pselect_read_timeout{n,m:nat | m <= n}(
 
 fun pselect_read{n,m:nat | m <= n}( 
    nfds: int m
- , readfds:  &(@[fd_set][n])  
+ , readfds:  &fd_set(n) 
  , writefds:  ptr null
  , exceptfds: ptr null
  , timeout : ptr null
@@ -89,7 +95,7 @@ fun pselect_read{n,m:nat | m <= n}(
 fun pselect_write_timeout{n,m:nat | m <= n}( 
    nfds: int m
  , readfds:  ptr null
- , writefds:  &(@[fd_set][n])  
+ , writefds:  &fd_set(n) 
  , exceptfds: ptr null
  , timeout : &timespec
  , sigmask : &sigset_t
@@ -98,7 +104,7 @@ fun pselect_write_timeout{n,m:nat | m <= n}(
 fun pselect_write{n,m:nat | m <= n}( 
    nfds: int m
  , readfds:  ptr null
- , writefds:  &(@[fd_set][n])  
+ , writefds:  &fd_set(n) 
  , exceptfds: ptr null
  , timeout : ptr null
  , sigmask : &sigset_t
@@ -108,7 +114,7 @@ fun pselect_except_timeout{n,m:nat | m <= n}(
    nfds: int m
  , readfds:  ptr null
  , writefds:  ptr null
- , exceptfds:  &(@[fd_set][n])  
+ , exceptfds:  &fd_set(n) 
  , timeout : &timespec
  , sigmask : &sigset_t
  ): intBtwe(~1,m) = "mac#pselect" 
@@ -117,7 +123,7 @@ fun pselect_except{n,m:nat | m <= n}(
    nfds: int m
  , readfds:  ptr null
  , writefds:  ptr null
- , exceptfds:  &(@[fd_set][n])  
+ , exceptfds:  &fd_set(n) 
  , timeout : ptr null
  , sigmask : &sigset_t
  ): intBtwe(~1,m) = "mac#pselect" 
