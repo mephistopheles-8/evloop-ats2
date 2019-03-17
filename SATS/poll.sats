@@ -12,13 +12,15 @@ abst@ype nfds_t(int) = $extype"nfds_t"
 
 castfn ulint2nfds : {n:int} ulint n -> nfds_t(n) 
 castfn nfds2ulint : {n:int} nfds_t(n) -> ulint n 
+castfn size2nfds : {n:int} size_t n -> nfds_t(n) 
 
 castfn int2nfds : {n:int} int n -> nfds_t(n) 
 castfn nfds2int : {n:int} nfds_t(n) -> int n 
 
-symintr i2nfds nfds2i
+symintr i2nfds nfds2i sz2nfds
 overload i2nfds with ulint2nfds
 overload i2nfds with int2nfds
+overload sz2nfds with size2nfds
 overload nfds2i with nfds2int
 overload nfds2i with nfds2ulint
 
@@ -31,6 +33,8 @@ typedef pollfd(n:int) =
     }
 
 typedef pollfd = [fd:int] pollfd(fd)
+
+fn pollfd_empty() : pollfd
 
 fn poll{n,m:nat | m <= n}(
    fds: &(@[pollfd][n])
@@ -51,12 +55,26 @@ fn ppoll{n,m:nat | m <= n}(
 abst@ype poll_events = sint
 abst@ype poll_status = sint
 
-castfn poll_events2sint : poll_events -> sint
-castfn poll_status2sint : poll_status -> sint
+castfn poll_events2sint : poll_events -<> sint
+castfn poll_status2sint : poll_status -<> sint
 
-symintr pe2si ps2si
+castfn poll_events2status : poll_events -<> poll_status
+
+
+fn poll_status_has_status( poll_status, poll_status ) : bool
+fn poll_status_has_event( poll_status, poll_events ) : bool
+
+symintr poll_status_has 
+overload poll_status_has with poll_status_has_status
+overload poll_status_has with poll_status_has_event
+
+fn pollfd_init{n:int}( fd : int n, events : poll_events ) : pollfd(n) 
+fn pollfd_status ( pollfd ) :<> poll_status
+
+symintr pe2si ps2si pe2ps 
 overload pe2si with poll_events2sint
 overload ps2si with poll_status2sint
+overload pe2ps with poll_events2status
 
 macdef POLLIN = $extval(poll_events,"POLLIN")
 macdef POLLPRI = $extval(poll_events,"POLLPRI")

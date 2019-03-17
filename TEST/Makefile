@@ -28,6 +28,10 @@ all:: test04
 test04: test04.dats ; $(PATSCC) -DATS ASYNCNET_SELECT $(PATSFLAGS) $(CFLAGS) -o $@ $< -lpthread 
 cleanall:: ; $(RMF) test04
 
+all:: test05
+test05: test05.dats ; $(PATSCC) --tlcalopt-disable -DATS ASYNCNET_POLL $(PATSFLAGS) $(CFLAGS) -o $@ $< -lpthread 
+cleanall:: ; $(RMF) test05
+
 
 cleanall:: ; $(RMF) *_*ats.c
 cleanall:: ; $(RMF) *.o

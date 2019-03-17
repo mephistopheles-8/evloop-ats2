@@ -144,7 +144,7 @@ implement {env}
 async_tcp_pool_error( pool, cfd, env ) =
   ( if cfd = pool.lfd 
     then exit_errmsg_void(1, "Error on listening socket");
-    perror("async_tcp_pool:kqueue:local");
+    perror("async_tcp_pool:select:local");
     socketfd_close_exn( cfd )
   )
 
@@ -208,7 +208,7 @@ async_tcp_pool_run( pool, env )
       else () 
 
  
-      and loop_kqueue(
+      and loop_select(
         pool : &async_tcp_pool
       , env  : &env >> _
       ) : void = 
@@ -223,7 +223,7 @@ async_tcp_pool_run( pool, env )
           val () = assertloc( err >= 0 )
           val () = loop_evts( pool, env, FD_SETSIZE ) 
           
-        in loop_kqueue( pool, env )
+        in loop_select( pool, env )
         end
 
       fun spawn_threads{n:nat} .<n>. (
@@ -248,7 +248,7 @@ async_tcp_pool_run( pool, env )
                   val () = FD_ZERO( rpool.active_set )
                   val () = FD_SET( socketfd_value( rpool.lfd ), rpool.active_set )
                 in 
-                  loop_kqueue( rpool, renv );
+                  loop_select( rpool, renv );
                   () where { 
                        prval () = $UNSAFE.cast2void(rpool)
                        prval () = $UNSAFE.cast2void(renv)
@@ -265,7 +265,7 @@ async_tcp_pool_run( pool, env )
     (*
       Either do pthread join or some sort of performance watchdog routine here...
     in 
-      loop_kqueue( pool, env )
+      loop_select( pool, env )
     *)
     end 
 
