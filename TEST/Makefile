@@ -24,6 +24,10 @@ all:: test03
 test03: test03.dats ; $(PATSCC) -DATS ASYNCNET_EPOLL $(PATSFLAGS) $(CFLAGS) -o $@ $< -lpthread 
 cleanall:: ; $(RMF) test03
 
+all:: test04
+test04: test04.dats ; $(PATSCC) -DATS ASYNCNET_SELECT $(PATSFLAGS) $(CFLAGS) -o $@ $< -lpthread 
+cleanall:: ; $(RMF) test04
+
 
 cleanall:: ; $(RMF) *_*ats.c
 cleanall:: ; $(RMF) *.o

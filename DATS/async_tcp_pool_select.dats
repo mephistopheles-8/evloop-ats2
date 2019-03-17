@@ -96,7 +96,7 @@ async_tcp_pool_add{fd}( pool, cfd, evts ) =
   then
   let
     val () = FD_SET( socketfd_value( cfd ), pool.active_set )
-    val () = $UNSAFE.cast2void( cfd )
+    prval () = $UNSAFE.cast2void( cfd )
     prval () = sockopt_none( cfd )
    in true 
   end 
@@ -215,6 +215,8 @@ async_tcp_pool_run( pool, env )
         let
 
           prval () = FD_SETSIZE_is_pos()
+
+          val () = pool.read_set := pool.active_set
 
           val err = select( FD_SETSIZE, pool.read_set, the_null_ptr, the_null_ptr, the_null_ptr ) 
           
