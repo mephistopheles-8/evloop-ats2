@@ -1,0 +1,12 @@
+#! /bin/bash
+
+PROJECT=asyncnet
+DATE=`date +%Y%m%d`
+ARCHIVE=${PROJECT}_${DATE}.tar
+
+git archive --verbose --prefix=$PROJECT/ -o $ARCHIVE HEAD
+git submodule  foreach --recursive 'git archive --prefix='$PROJECT'/$displaypath/ --verbose -o $toplevel/$name.tar HEAD && tar --concatenate --file=$toplevel/'$ARCHIVE' $toplevel/$name.tar && rm $toplevel/$name.tar'
+# Why does it do this?
+echo "Cleanup..."
+git submodule  foreach --recursive 'rm -f '$ARCHIVE''
+gzip $ARCHIVE
