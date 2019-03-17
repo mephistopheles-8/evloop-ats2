@@ -20,6 +20,10 @@ staload _ = "./DATS/epoll.dats"
 #elifdef ASYNCNET_KQUEUE
 staload "./SATS/kqueue.sats"
 staload _ = "./DATS/kqueue.dats"
+#elifdef ASYNCNET_SELECT
+staload "./SATS/select.sats"
+#elifdef ASYNCNET_POLL
+staload "./SATS/poll.sats"
 #endif
 
 staload "./SATS/async_tcp_pool.sats"
@@ -28,6 +32,10 @@ staload "./SATS/async_tcp_pool.sats"
 staload _ = "./DATS/async_tcp_pool_epoll.dats"
 #elifdef ASYNCNET_KQUEUE
 staload _ = "./DATS/async_tcp_pool_kqueue.dats"
+#elifdef ASYNCNET_SELECT
+staload _ = "./DATS/async_tcp_pool_select.dats"
+#elifdef ASYNCNET_POLL
+staload _ = "./DATS/async_tcp_pool_poll.dats"
 #endif
 
 #endif

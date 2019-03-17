@@ -11,11 +11,13 @@ staload "libats/libc/SATS/signal.sats"
 
 (** TODO: Best define a more sane interface **)
 abst@ype fd_set(n:int) = $extype"fd_set"
-typedef fd_set = [n:int] fd_set(n)
 
 sta FD_SETSIZE : int
 
 macdef FD_SETSIZE = $extval(int FD_SETSIZE, "FD_SETSIZE")
+typedef fd_set = fd_set(FD_SETSIZE)
+
+prfn FD_SETSIZE_is_pos () : [FD_SETSIZE > 0] void
 
  
 fun select_read_timeout{n,m:nat | m <= n}( 
@@ -139,4 +141,4 @@ overload pselect with pselect_except
 fn FD_CLR{fd:int}( int fd, &fd_set) : void = "mac#" 
 fn FD_ISSET{fd:int}( int fd, &fd_set) : bool = "mac#"
 fn FD_SET{fd:int}( int fd, &fd_set) : void = "mac#"
-fn FD_ZERO{fd:int}( &fd_set) : void = "mac#"
+fn FD_ZERO{fd:int}( &fd_set? >> fd_set) : void = "mac#"

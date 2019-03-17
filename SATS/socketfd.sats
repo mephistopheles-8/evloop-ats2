@@ -30,6 +30,11 @@ castfn socketfd_decode
   ( socketfd(fd, s) ) 
   : (socket_v(fd,s) | int fd)
 
+castfn socketfd_value
+  {fd:int}{s:status}
+  ( !socketfd(fd, s) ) 
+  : int fd
+
 
 castfn socketfd_fildes
   {fd:int}{s:status}
