@@ -202,7 +202,13 @@ async_tcp_pool_run( pool, env )
               val () = loop_evts(pool, env, i-1)
             }
             else 
-              ( async_tcp_pool_process<env>(pool, 0, $UNSAFE.castvwtp0{socketfd1(conn)}(i), env );
+              ( (** Keep the oneshot semantics of epoll / kqueue versions
+                    by removing the fd from the pool.  They must 
+                    remove or re-add the socket manually.
+                    FIXME: replace with something less hackish.
+                 **) 
+                FD_CLR( i, pool.active_set ); 
+                async_tcp_pool_process<env>(pool, 0, $UNSAFE.castvwtp0{socketfd1(conn)}(i), env );
                 loop_evts(pool, env, i-1) ) 
           else loop_evts(pool, env, i-1)
       else () 

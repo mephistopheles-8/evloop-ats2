@@ -286,8 +286,23 @@ async_tcp_pool_run( pool, env )
                   val () = loop_evts(pool, fds, nfds-1, env)
                 }
            | poll_status_has( status, POLLIN ) =>
-              ( async_tcp_pool_process<env>(pool, status, client_sock, env );
-                loop_evts(pool, fds, nfds - 1, env) )
+              let
+                  (** Keep the oneshot semantics of epoll / kqueue versions by removing the fd 
+                      from the pool... accrues overhead of compression, unfortunately 
+                      
+                      If the user calls "_add" or "_add_exn", the socket will be re-added.
+                      If the user calls "_del" or "_del_exn", the socket will be closed.
+                     
+                      The user must do one or the other from within the async_tcp_pool_process.
+
+                      FIXME: replace with something less hackish, eventually. 
+                  **)
+                  val () = $UNSAFE.ptr0_set_at<pollfd>( pool.fds, pool.fdcurr, pollfd_empty() )
+                  val () = pool.compress := true
+               in
+                async_tcp_pool_process<env>(pool, status, client_sock, env );
+                loop_evts(pool, fds, nfds - 1, env);
+              end
            | _ =>( 
                    loop_evts(pool, fds, nfds-1, env)
                   )
