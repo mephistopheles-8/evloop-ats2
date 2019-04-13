@@ -35,9 +35,9 @@ implement main0 () = println!("Hello [test04]")
                     let
                       val ssz = socketfd_write_string( 
                         cfd, "HTTP/2.0 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 10\r\n\r\nHello guys", i2sz(75) ) 
-                     in async_tcp_pool_del_exn<>( pool, cfd )
+                     in socketfd_close_exn( cfd )
                     end
-                else async_tcp_pool_del_exn<>( pool, cfd )
+                else socketfd_close_exn( cfd )
                  
             in
             end

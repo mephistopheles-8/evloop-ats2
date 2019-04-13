@@ -132,7 +132,9 @@ async_tcp_pool_del{fd}( pool, cfd ) =
   let
     var empt = epoll_event_empty()
     val err =  epoll_ctl( pool.efd, EPOLL_CTL_DEL, cfd, empt )
-  in if err = 0
+  in err = 0
+
+     (*if err = 0
      then if socketfd_close( cfd ) 
           then true
           else false
@@ -140,7 +142,7 @@ async_tcp_pool_del{fd}( pool, cfd ) =
       let
         prval () = sockopt_some(cfd)
       in false
-      end 
+      end *) 
   end
 
 implement {}
@@ -155,9 +157,9 @@ async_tcp_pool_add_exn{fd}( pool, cfd, evts ) =
 implement {}
 async_tcp_pool_del_exn{fd}( pool, cfd ) =
   let
-    var cfd = cfd
+    //var cfd = cfd
     val () = assertloc( async_tcp_pool_del<>(pool,cfd) )
-    prval () = sockopt_unnone(cfd) 
+    //prval () = sockopt_unnone(cfd) 
   in
   end
 
@@ -239,7 +241,12 @@ async_tcp_pool_run( pool, env )
 
                     prval () = $UNSAFE.cast2void(lfd)
                   }
-               | _ => async_tcp_pool_process<env>(pool, events, client_sock, env )  
+               | _ => (
+                   async_tcp_pool_del_exn<>(pool, clisock );
+                   async_tcp_pool_process<env>(pool, events, clisock, env ) 
+                ) where {
+                  val clisock = client_sock
+                } 
 
              in loop_evts(pool,ebuf,nevts-1,env)
             end

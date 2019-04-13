@@ -1,0 +1,43 @@
+
+- Clarify network semantics:
+  remove from pool and socket close should probably not be the same operation.
+
+  Ownership should remain clear (eg, keeping in pool should be explicit )
+  Ideally, keeping in the pool should be a no-op.  This is currently not the
+  case with select / poll backends
+
+  We are given a socket: 
+    - we can keep it in the pool (or re-add it to the pool)
+    - change ownership ( remove from pool )
+    - close ( remove from pool, close )
+
+    Sockets are linear; we must do something with them.
+    This is to our advantage.
+
+    If we remove from pool first (eg, manual re-add), then 
+    all normal operations on the socket should be "safe"
+    PRO:
+        - We don't need to fiddle about with extra types or proofs
+    CONS:
+        - May accrue overhead (eg, poll, and socket pool compression)
+        - Some strangeness in the execution model may have unintended
+          side-effects:
+            Eg, epoll: epoll_ctl_del needs to be set in the flags.
+     
+    Let's say the socket is assumed to stay in the pool:
+    PRO:
+        - Intuitive assumption
+    CONS: 
+        - Less explicit socket lifeline.
+        - We likely need an additional proof or type indicator
+          for managed sockets.  For instance, they should be
+          removed from the pool before they are closed. 
+   
+
+
+
+- I need to make sure it's safe to run two asyncpools in parallel. 
+
+- There should be a hook that fires on each server iteration, in the main loop. This should
+  make multiplexing easier.
+

@@ -124,10 +124,10 @@ async_tcp_pool_del{fd}( pool, cfd ) =
     let 
         val () = $UNSAFE.ptr0_set_at<pollfd>( pool.fds, pool.fdcurr, pollfd_empty() )
         val () = pool.compress := true
-    in
-      if socketfd_close( cfd ) 
+    in true
+      (*if socketfd_close( cfd ) 
       then true
-      else false  
+      else false *) 
     end
 
 implement {}
@@ -142,17 +142,16 @@ async_tcp_pool_add_exn{fd}( pool, cfd, evts ) =
 implement {}
 async_tcp_pool_del_exn{fd}( pool, cfd ) =
   let
-    var cfd = cfd
+  //  var cfd = cfd
     val () = assertloc( async_tcp_pool_del<>(pool,cfd) )
-    prval () = sockopt_unnone(cfd) 
+ //   prval () = sockopt_unnone(cfd) 
   in
   end
 
 
 implement {env}
 async_tcp_pool_hup( pool, cfd, env ) =
-  async_tcp_pool_del_exn<>( pool, cfd )
-  (* socketfd_close_exn( cfd ) *)
+   socketfd_close_exn( cfd )
 
 implement {env}
 async_tcp_pool_error( pool, cfd, env ) =
@@ -297,10 +296,11 @@ async_tcp_pool_run( pool, env )
 
                       FIXME: replace with something less hackish, eventually. 
                   **)
-                  val () = $UNSAFE.ptr0_set_at<pollfd>( pool.fds, pool.fdcurr, pollfd_empty() )
-                  val () = pool.compress := true
+                  val clisock = client_sock
+                  
                in
-                async_tcp_pool_process<env>(pool, status, client_sock, env );
+                async_tcp_pool_del_exn<>( pool, clisock );
+                async_tcp_pool_process<env>(pool, status, clisock, env );
                 loop_evts(pool, fds, nfds - 1, env);
               end
            | _ =>( 

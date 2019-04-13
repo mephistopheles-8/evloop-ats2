@@ -37,12 +37,12 @@ fun {}
 
 fun {}
   async_tcp_pool_del{fd:int}
-  ( &async_tcp_pool, &socketfd(fd,conn) >> sockopt(fd,conn,~b) )
-  : #[b:bool] bool b
+  ( &async_tcp_pool, !socketfd(fd,conn) )
+  : bool
 
 fun {}
   async_tcp_pool_del_exn{fd:int}
-  ( &async_tcp_pool, socketfd(fd,conn)  )
+  ( &async_tcp_pool, !socketfd(fd,conn)  )
   : void
 
 (** user **)

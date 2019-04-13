@@ -138,15 +138,15 @@ async_tcp_pool_del{fd}( pool, cfd ) =
     var empt = kevent_empty()
     val () = EV_SET(empt, cfd, EVFILT_READ, EV_DELETE, kevent_fflag_empty, kevent_data_empty, the_null_ptr  )
     val err =  kevent( pool.kfd, empt, 1, the_null_ptr, 0, the_null_ptr )
-  in if err = 0
-     then if socketfd_close( cfd ) 
+  in err = 0
+     (*then if socketfd_close( cfd ) 
           then true
           else false
      else
       let
         prval () = sockopt_some(cfd)
       in false
-      end 
+      end  *)
   end
 
 implement {}
@@ -161,9 +161,9 @@ async_tcp_pool_add_exn{fd}( pool, cfd, evts ) =
 implement {}
 async_tcp_pool_del_exn{fd}( pool, cfd ) =
   let
-    var cfd = cfd
+//    var cfd = cfd
     val () = assertloc( async_tcp_pool_del<>(pool,cfd) )
-    prval () = sockopt_unnone(cfd) 
+//    prval () = sockopt_unnone(cfd) 
   in
   end
 
@@ -171,8 +171,7 @@ async_tcp_pool_del_exn{fd}( pool, cfd ) =
 
 implement {env}
 async_tcp_pool_hup( pool, cfd, env ) =
-  async_tcp_pool_del_exn<>( pool, cfd )
-  (* socketfd_close_exn( cfd ) *)
+  ( socketfd_close_exn( cfd ) )
 
 implement {env}
 async_tcp_pool_error( pool, cfd, env ) =
@@ -246,7 +245,12 @@ async_tcp_pool_run( pool, env )
 
                     prval () = $UNSAFE.cast2void(lfd)
                   }
-               | _ => async_tcp_pool_process<env>(pool, $UNSAFE.cast{kevent_action}(flags), client_sock, env )  
+               | _ => (
+                  async_tcp_pool_del_exn<>(pool, clisock );
+                  async_tcp_pool_process<env>(pool, $UNSAFE.cast{kevent_action}(flags), clisock, env ) 
+                ) where {
+                  val clisock = client_sock
+                } 
 
              in loop_evts(pool,ebuf,nevts-1,env)
             end
