@@ -28,7 +28,7 @@ implement main0 () = println!("Hello [test05]")
           implement
           async_tcp_pool_process<int>( pool, evts, cfd, env ) =
             let
-              val () = println!("Serving client..")
+//              val () = println!("Serving client..")
               var buf = @[byte][BUFSZ](i2byte(0))
               val () =
                 if  socketfd_read( cfd, buf, i2sz(BUFSZ) ) >= 0
