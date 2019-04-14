@@ -6,6 +6,7 @@
   Ideally, keeping in the pool should be a no-op.  This is currently not the
   case with select / poll backends
 
+
   We are given a socket: 
     - we can keep it in the pool (or re-add it to the pool)
     - change ownership ( remove from pool )
@@ -14,6 +15,8 @@
     Sockets are linear; we must do something with them.
     This is to our advantage.
 
+    ** NOTE -- going with this option.  Only time will tell
+       if it's bollocks **
     If we remove from pool first (eg, manual re-add), then 
     all normal operations on the socket should be "safe"
     PRO:
@@ -34,6 +37,11 @@
           removed from the pool before they are closed. 
    
 
+
+- There seems to be some kind of performance bottleneck, or at least when
+  compared to actix-web (not a huge suprise, but still).  We are running
+  at 1/4 the speed in my demos.  Perhaps I am not making perfect use of
+  async-IO.
 
 
 - I need to make sure it's safe to run two asyncpools in parallel. 
