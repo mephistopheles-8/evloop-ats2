@@ -32,6 +32,7 @@ exception SocketfdCloseExn of socketfd0
 #endif
 
 
+macdef SO_REUSEPORT = $extval(int, "SO_REUSEPORT")
 macdef SO_REUSEADDR = $extval(int, "SO_REUSEADDR")
 macdef SOL_SOCKET = $extval(int, "SOL_SOCKET")
 
@@ -165,8 +166,11 @@ socketfd_create_bind_port(sfd,p)
           val () = 
             if p.reuseaddr
             then 
-                { var n : int = 1 
+                { 
+                  var n : int = 1 
                   val _ = assertloc( setsockopt( $UNSAFE.castvwtp1{int}(sfd), SOL_SOCKET, SO_REUSEADDR, n, sizeof<int> ) > ~1 )
+                  var n : int = 1 
+                  val _ = assertloc( setsockopt( $UNSAFE.castvwtp1{int}(sfd), SOL_SOCKET, SO_REUSEPORT, n, sizeof<int> ) > ~1 )
                 }
             else () 
           val () = 
