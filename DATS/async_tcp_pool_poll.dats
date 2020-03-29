@@ -255,6 +255,7 @@ async_tcp_pool_run( pool, env )
                     async_tcp_pool_error<env>(pool, client_sock, env )
               | poll_status_has( status, POLLNVAL ) =>
                     async_tcp_pool_error<env>(pool, client_sock, env )
+              (*
               | poll_status_has( status, POLLIN ) && pool.lfd = sock =>
                  {
                   vtypedef accept_state = @{
@@ -284,6 +285,7 @@ async_tcp_pool_run( pool, env )
                   prval () = $UNSAFE.cast2void(lfd)
                   val () = loop_evts(pool, fds, nfds-1, env)
                 }
+              *)
            | poll_status_has( status, POLLIN ) =>
               let
                   (** Keep the oneshot semantics of epoll / kqueue versions by removing the fd 
@@ -299,7 +301,7 @@ async_tcp_pool_run( pool, env )
                   val clisock = client_sock
                   
                in
-                async_tcp_pool_del_exn<>( pool, clisock );
+               // async_tcp_pool_del_exn<>( pool, clisock );
                 async_tcp_pool_process<env>(pool, status, clisock, env );
                 loop_evts(pool, fds, nfds - 1, env);
               end

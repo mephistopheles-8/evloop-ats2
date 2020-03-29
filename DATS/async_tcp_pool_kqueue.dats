@@ -217,7 +217,8 @@ async_tcp_pool_run( pool, env )
                | kevent_status_has(flags2status(flags), EV_EOF ) => 
                     async_tcp_pool_hup<env>(pool, client_sock, env )
                | kevent_status_has(flags2status(flags), EV_ERROR ) => 
-                    async_tcp_pool_error<env>(pool, client_sock, env ) 
+                    async_tcp_pool_error<env>(pool, client_sock, env )
+                (* 
                | pool.lfd = g1ofg0(fd) =>
                   {
                     vtypedef accept_state = @{
@@ -245,8 +246,9 @@ async_tcp_pool_run( pool, env )
 
                     prval () = $UNSAFE.cast2void(lfd)
                   }
+                *)
                | _ => (
-                  async_tcp_pool_del_exn<>(pool, clisock );
+                 // async_tcp_pool_del_exn<>(pool, clisock );
                   async_tcp_pool_process<env>(pool, $UNSAFE.cast{kevent_action}(flags), clisock, env ) 
                 ) where {
                   val clisock = client_sock

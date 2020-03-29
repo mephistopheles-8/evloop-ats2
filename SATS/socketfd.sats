@@ -11,7 +11,7 @@ staload "libats/libc/SATS/fcntl.sats"
 absvt@ype socketfd(int,status) = int
 vtypedef socketfd0 = [fd:int][st:status] socketfd(fd,st)
 vtypedef socketfd1(st: status) = [fd:int] socketfd(fd,st)
-
+vtypedef socketfd(fd:int) = [st:status] socketfd(fd,st)
 (** ** ** ** ** ** **)
 
 exception SocketfdCreateExn

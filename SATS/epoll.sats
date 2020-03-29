@@ -117,7 +117,7 @@ fun epoll_ctl:   ( !epollfd, epoll_action, !socketfd0, &epoll_event ) -> intBtwe
 fun epoll_wait:  {n,m:nat | m <= n}( !epollfd, &(@[epoll_event][n]), int m, int) -> intBtwe(~1,m) = "mac#epoll_wait"
 fun epoll_pwait: {n,m:nat | m <= n}(  !epollfd, &(@[epoll_event][n]), int m, int, &sigset_t) -> intBtwe(~1,m) = "mac#epoll_pwait"
 
-fn epollfd_add0( efd: !epollfd, sfd: !socketfd0, epoll_event_kind ) 
+fn epollfd_add0( efd: !epollfd, sfd: !socketfd0, epoll_event_kind, data: epoll_data_t ) 
   : intBtwe(~1,0) = "ext#%"
 
 (** If we add an sfd to epoll, we are likely managing the connection
@@ -128,7 +128,7 @@ fn epollfd_add0( efd: !epollfd, sfd: !socketfd0, epoll_event_kind )
 **)
 absprop epoll_add_v(fd:int, st:status)
 
-fn epollfd_add1{efd,fd:int}{st:status}( efd: !epollfd(efd), sfd: !socketfd(fd,st), epoll_event_kind ) 
+fn epollfd_add1{efd,fd:int}{st:status}( efd: !epollfd(efd), sfd: !socketfd(fd,st), epoll_event_kind, data: epoll_data_t ) 
   : [err: int | err >= ~1; err <= 0]
     (option_v(epoll_add_v(fd,st), err == 0) | int err )
   = "mac#%epollfd_add0"

@@ -170,7 +170,7 @@ async_tcp_pool_run( pool, env )
         if i > 0
         then 
           if FD_ISSET( i, pool.read_set ) 
-          then 
+          then (* 
             if pool.lfd = i
             then
              {
@@ -200,7 +200,7 @@ async_tcp_pool_run( pool, env )
               prval () = $UNSAFE.cast2void(lfd)
               val () = loop_evts(pool, env, i-1)
             }
-            else
+            else *)
               let 
                  (** Keep the oneshot semantics of epoll / kqueue versions
                     by removing the fd from the pool.  They must 
@@ -209,7 +209,7 @@ async_tcp_pool_run( pool, env )
                  **)
                 val clisock = $UNSAFE.castvwtp0{socketfd1(conn)}(i)
                in
-                async_tcp_pool_del_exn<>( pool, clisock ); 
+//                async_tcp_pool_del_exn<>( pool, clisock ); 
                 async_tcp_pool_process<env>(pool, 0, clisock, env );
                 loop_evts(pool, env, i-1) 
               end 

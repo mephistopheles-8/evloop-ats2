@@ -17,166 +17,135 @@ staload "./../SATS/async_tcp_pool.sats"
 (** FIXME: Make threading optional **)
 (** FIXME: Make sure env is handled safely when threading is enabled **)
 
+(** FIXME: This should only work in a single-threaded impl **)
 absimpl
-async_tcp_pool = @{
-   lfd = socketfd1(listen)
- , efd = epollfd
+async_tcp_pool(a) = @{
+//   lfd = socketfd1(listen)
+   efd = epollfd
  , maxevents = sizeGt(0)
- , threads   = sizeGt(0) 
+ , threads   = sizeGt(0)
+(** FIXMME: Each thread needs a variant of this **)
+ , clients   = List0_vt(a) 
 }
 
 absimpl
 async_tcp_params = @{
-    port = int
-  , address = in_addr_nbo_t
-  , backlog = intGt(0)
-  , maxevents = sizeGt(0)
+    maxevents = sizeGt(0)
   , threads   = sizeGt(0)
-  , reuseaddr = bool 
   }
 
 absimpl
 async_tcp_event = epoll_event_kind
 
   
-implement {}
+implement {a}
 async_tcp_pool_create( pool, params ) =
-  let
-    var sp : socketfd_setup_params = @{
-          af = AF_INET
-        , st = SOCK_STREAM
-        , nonblocking = true 
-        , reuseaddr   = params.reuseaddr 
-        , port = params.port
-        , address = params.address
-        , backlog = params.backlog
-      }
-
-    var sfd : socketfd0?
-  
-   in  if socketfd_setup( sfd, sp )
-      then
-          let 
-            prval () = sockopt_unsome( sfd )
-            val (pep | efd) = epoll_create1(EP0) 
-          in if efd > 0
-             then
-                let
-                    prval Some_v(pep) =  pep
-                    val efd = epollfd_encode( pep | efd ) 
-                    val () = assertloc( epollfd_add0( efd, sfd, EPOLLIN lor EPOLLET ) = 0 )
-                    val () =
-                      pool := (@{    
-                          lfd = sfd
-                        , efd = efd
-                        , maxevents = params.maxevents
-                        , threads   = params.threads
-                       })
-                    prval () = opt_some(pool) 
-                 in true
-                end
-             else 
-                let
-                    prval None_v() =  pep
-                    prval () = opt_none(pool)
-                    val () = socketfd_close_exn( sfd )
-                 in false 
-                end
-         end
+  let 
+      val (pep | efd) = epoll_create1(EPOLL_CLOEXEC) 
+    in if efd > 0
+       then
+          let
+              prval Some_v(pep) =  pep
+              val efd = epollfd_encode( pep | efd ) 
+              val () =
+                pool := (@{    
+                    efd = efd
+                  , maxevents = params.maxevents
+                  , threads   = params.threads
+                  , clients   = list_vt_nil()
+                 })
+              prval () = opt_some(pool) 
+           in true
+          end
        else 
-        let
-            prval () = sockopt_unnone( sfd )
-            prval () = opt_none(pool)
-         in false 
-        end
-  end
+          let
+              prval None_v() =  pep
+              prval () = opt_none(pool)
+           in false 
+          end
+   end
 
-implement {}
+implement {a}
 async_tcp_pool_close_exn( pool ) =
   let
     val () =
       ( epollfd_close_exn( pool.efd ); 
-        socketfd_close_exn( pool.lfd );
+       list_vt_freelin<a>( pool.clients ) 
       )
   in 
   end
 
-
 implement {}
-async_tcp_pool_add{fd}( pool, cfd, evts ) =
+async_tcp_pool_add{socketenv}{fd}( pool, cfd, evts, senv ) =
   if socketfd_set_nonblocking( cfd )
   then
     let
-      val (pf | err) = epollfd_add1( pool.efd, cfd, evts lor EPOLLONESHOT ) 
+      (** FIXME: ignore EINTR **) 
+      val p = $UNSAFE.castvwtp1{ptr}(senv)
+      val (pf | err) = epollfd_add1( pool.efd, cfd, evts, epoll_data_ptr(p) ) 
     in if err = 0
        then 
           let
             prval Some_v( pfadd ) = pf 
             prval () = epoll_add_sfd_elim( pfadd , cfd )
             prval () = sockopt_none( cfd )
+            val () = pool.clients := list_vt_cons( senv, pool.clients )
+            prval () = opt_none( senv )
           in true
           end
         else
           let
             prval None_v( ) = pf 
             prval () = sockopt_some( cfd )
+            prval () = opt_some( senv )
           in false
           end
     end 
   else false where {
     prval () = sockopt_some( cfd )
+    prval () = opt_some( senv )
   }
- 
+
 implement {}
 async_tcp_pool_del{fd}( pool, cfd ) =
   let
+    (** FIXME: ignore EINTR **) 
     var empt = epoll_event_empty()
     val err =  epoll_ctl( pool.efd, EPOLL_CTL_DEL, cfd, empt )
   in err = 0
-
-     (*if err = 0
-     then if socketfd_close( cfd ) 
-          then true
-          else false
-     else
-      let
-        prval () = sockopt_some(cfd)
-      in false
-      end *) 
   end
 
 implement {}
-async_tcp_pool_add_exn{fd}( pool, cfd, evts ) =
+async_tcp_pool_add_exn{fd}( pool, cfd, evts, senv ) =
   let
     var cfd = cfd
-    val () = assertloc( async_tcp_pool_add<>(pool,cfd,evts) )
+    var senv = senv
+    val () = assertloc( async_tcp_pool_add<>(pool,cfd,evts,senv) )
     prval () = sockopt_unnone(cfd) 
+    prval () = opt_unnone(senv) 
   in
   end
 
 implement {}
 async_tcp_pool_del_exn{fd}( pool, cfd ) =
   let
-    //var cfd = cfd
     val () = assertloc( async_tcp_pool_del<>(pool,cfd) )
-    //prval () = sockopt_unnone(cfd) 
   in
   end
 
 
 
-implement {env}
-async_tcp_pool_hup( pool, cfd, env ) =
-  socketfd_close_exn( cfd )
+implement {env}{senv}
+async_tcp_pool_hup( pool, env, senv ) = (
+  sockenv$free<senv>(senv)
+)
 
-implement {env}
-async_tcp_pool_error( pool, cfd, env ) =
-  ( if cfd = pool.lfd 
-    then exit_errmsg_void(1, "Error on listening socket");
+implement {env}{senv}
+async_tcp_pool_error( pool, env, senv ) = (
     perror("async_tcp_pool:epoll");
-    socketfd_close_exn( cfd )
+    sockenv$free<senv>(senv)
   )
-
+(*
 implement {env}
 async_tcp_pool_accept{fd}( pool, cfd, env ) =
   let
@@ -185,15 +154,15 @@ async_tcp_pool_accept{fd}( pool, cfd, env ) =
     prval () = sockopt_unnone{conn}{fd}( cfd )
   in
   end
+*)
 
-
-implement  {env}
+implement  {env}{sockenv}
 async_tcp_pool_run( pool, env )  
   = let
       fun loop_evts
         {n,m:nat | m <= n}
       (
-        pool : &async_tcp_pool
+        pool : &async_tcp_pool(sockenv)
       , ebuf : &(@[epoll_event][n])
       , nevts : size_t m
       , env  : &env >> _
@@ -202,18 +171,18 @@ async_tcp_pool_run( pool, env )
         then
           let
             val evt = ebuf[ nevts-1 ] 
-            val fd = evt.data.fd
             val events = evt.events
             
-            macdef client_sock = 
-              $UNSAFE.castvwtp1{socketfd1(conn)}( fd )
+            macdef senv = 
+              $UNSAFE.castvwtp1{sockenv}( evt.data.ptr )
 
             val () =
               ifcase
                | eek_has(events, EPOLLERR ) => 
-                    async_tcp_pool_error<env>(pool, client_sock, env ) 
+                    async_tcp_pool_error<env><sockenv>(pool, env, senv ) 
                | eek_has(events, EPOLLHUP ) => 
-                    async_tcp_pool_hup<env>(pool, client_sock, env )
+                    async_tcp_pool_hup<env><sockenv>(pool, env, senv )
+                (*
                | pool.lfd = g1ofg0(fd) =>
                   {
                     vtypedef accept_state = @{
@@ -241,19 +210,18 @@ async_tcp_pool_run( pool, env )
 
                     prval () = $UNSAFE.cast2void(lfd)
                   }
+                *)
                | _ => (
-                   async_tcp_pool_del_exn<>(pool, clisock );
-                   async_tcp_pool_process<env>(pool, events, clisock, env ) 
-                ) where {
-                  val clisock = client_sock
-                } 
+//                   async_tcp_pool_del_exn<>(pool, clisock );
+                   async_tcp_pool_process<sockenv>(pool, events, senv ) 
+                )
 
              in loop_evts(pool,ebuf,nevts-1,env)
             end
           else ()
  
       and loop_epoll{n,m:nat | m <= n}(
-        pool : &async_tcp_pool
+        pool : &async_tcp_pool(sockenv)
       , ebuf : &(@[epoll_event][n])
       , ebsz : size_t m
       , env  : &env >> _
@@ -271,15 +239,15 @@ async_tcp_pool_run( pool, env )
         end
 
       fun spawn_threads{n:nat} .<n>. (
-            pool: &async_tcp_pool
+            pool: &async_tcp_pool(sockenv)
           , env: &env >> _ 
           , n_threads : size_t n
         ): void =
         if n_threads > 0
         then
           let
-            (** This cast should be benign **)
-            val p = $UNSAFE.castvwtp1{async_tcp_pool}(pool)
+            (** FIXME: This cast is unsafe **)
+            val p = $UNSAFE.castvwtp1{async_tcp_pool(sockenv)}(pool)
 
             (** FIXME: This cast is unsafe **)
             val e = $UNSAFE.castvwtp1{env}(env)

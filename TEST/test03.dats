@@ -13,7 +13,7 @@ implement main0 () = println!("Hello [test03]")
         port = 8888
       , address = in_addr_hbo2nbo (INADDR_ANY)
       , backlog = 24
-      , maxevents = i2sz(64)
+      , maxevents = i2sz(256)
       , threads = i2sz(4)
       , reuseaddr = true
       } : async_tcp_params)
