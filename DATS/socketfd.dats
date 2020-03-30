@@ -21,6 +21,10 @@ staload "libats/libc/SATS/errno.sats"
 
 staload _ = "libats/libc/DATS/sys/socket.dats"
 
+%{#
+#include <netinet/tcp.h>
+%}
+
 (** This should be defined in libats ... **)
 macdef O_NONBLOCK = $extval(fcntlflags, "O_NONBLOCK")
 
@@ -35,12 +39,15 @@ exception SocketfdCloseExn of socketfd0
 macdef SO_REUSEPORT = $extval(int, "SO_REUSEPORT")
 macdef SO_REUSEADDR = $extval(int, "SO_REUSEADDR")
 macdef SOL_SOCKET = $extval(int, "SOL_SOCKET")
+macdef TCP_NODELAY = $extval(int, "TCP_NODELAY")
+macdef IPPROTO_TCP = $extval(int, "IPPROTO_TCP")
+macdef FD_CLOEXEC = $extval(fcntlflags, "FD_CLOEXEC")
 
 extern
 fn setsockopt( int, int, int, &int, size_t (sizeof(int)) ) : int = "mac#"
 
 
-implement
+implement {}
 socketfd_create( sfd, af, st )
   = let
       val (pf | fd) = socket_AF_type(af,st)
@@ -60,7 +67,7 @@ socketfd_create( sfd, af, st )
           end
     end 
 
-implement
+implement {}
 socketfd_set_nonblocking( sfd )
   = let
       val (psock | fd) = socketfd_fildes( sfd ) 
@@ -70,7 +77,25 @@ socketfd_set_nonblocking( sfd )
     in s > ~1
     end
 
-implement
+implement {}
+socketfd_set_cloexec( sfd )
+  = let
+      val (psock | fd) = socketfd_fildes( sfd ) 
+      val flags = fcntl_getfl(fd)
+      val s = fcntl_setfl(fd, flags lor FD_CLOEXEC )  
+      val () = sfd := fildes_socketfd( psock | fd )
+    in s > ~1
+    end
+
+implement {}
+socketfd_set_nodelay( sfd ) 
+  = st > ~1 where {
+      var n : int = 1 
+      val st = setsockopt( $UNSAFE.castvwtp1{int}(sfd), IPPROTO_TCP, TCP_NODELAY, n, sizeof<int> ) 
+  
+  }
+
+implement 
 socketfd_create_exn(af,st)
   = let
       val (pf | fd) = socket_AF_type(af,st)
@@ -87,7 +112,7 @@ socketfd_create_exn(af,st)
           end
     end 
 
-implement
+implement {}
 socketfd_create_opt(af,st) 
   = let
       var sfd : socketfd0?
@@ -111,14 +136,14 @@ fun _socketfd_bind_in{fd:int}(
  , size : size_t (sizeof(sockaddr_in)) 
 ) : #[n:int] int n = "mac#bind" 
 
-implement
+implement {}
 socketfd_bind_in(sfd,sockaddr)
      = if _socketfd_bind_in( sfd, sockaddr, sizeof<sockaddr_in> ) > ~1 
      then true
      else false
 
 
-implement
+implement {}
 socketfd_close(sfd)
   = let
       val (pf | fd) = socketfd_decode( sfd )
@@ -139,7 +164,7 @@ socketfd_close(sfd)
         end
     end
 
-implement
+implement 
 socketfd_close_exn(sfd)
   = let
       var sfd = sfd
@@ -153,7 +178,7 @@ socketfd_close_exn(sfd)
         }
     end
 
-implement
+implement {}
 socketfd_create_bind_port(sfd,p)
   = let
 
@@ -172,10 +197,21 @@ socketfd_create_bind_port(sfd,p)
                   //var n : int = 1 
                   //val _ = assertloc( setsockopt( $UNSAFE.castvwtp1{int}(sfd), SOL_SOCKET, SO_REUSEPORT, n, sizeof<int> ) > ~1 )
                 }
+            
+          val () = 
+            if p.nodelay
+            then 
+                { 
+                  val () =  assertloc( socketfd_set_nodelay( sfd ) ) 
+                }
             else () 
           val () = 
             if p.nonblocking 
             then  assertloc( socketfd_set_nonblocking( sfd ) ) 
+            else ()
+          val () = 
+            if p.cloexec 
+            then  assertloc( socketfd_set_cloexec( sfd ) ) 
             else ()
           prval () = view@sfd := prv
  
@@ -213,7 +249,7 @@ socketfd_create_bind_port(sfd,p)
         end
     end 
 
-implement
+implement {}
 socketfd_listen(sfd, backlog)
   = let
       val (pf | fd) = socketfd_decode( sfd )
@@ -246,7 +282,7 @@ local
       ( socket_v(fd,st) ) : void
 
 in
-implement
+implement {}
 socketfd_accept(sfd,cfd)
   = let
  
@@ -271,7 +307,7 @@ socketfd_accept(sfd,cfd)
     end 
 end (** END, [local] **)
 
-implement
+implement {}
 socketfd_setup(sfd,params)
  = let
     prval pfv = view@params

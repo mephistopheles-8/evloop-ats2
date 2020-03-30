@@ -87,28 +87,43 @@ prfn sockalt_unleft{st1,st2:status}{fd:int}( &sockalt(fd,st1,st2,true) >> socket
 prfn sockalt_unright{st1,st2:status}{fd:int}( &sockalt(fd,st1,st2,false) >> socketfd(fd,st2))
   : void
 
-fun socketfd_create
+fun {} socketfd_create
   ( sfd: &socketfd0? >> sockopt(init, b)
   , af: sa_family_t
   , st: socktype_t
   ) : #[b:bool] bool b
 
-fun socketfd_set_nonblocking
+fun {} socketfd_set_nonblocking
   {fd:int}{st:status}
   ( sfd: &socketfd(fd,st)
   ) : bool
 
-fun socketfd_create_exn
+fun {} socketfd_set_cloexec
+  {fd:int}{st:status}
+  ( sfd: &socketfd(fd,st)
+  ) : bool
+
+fun {} socketfd_set_reuseaddr
+  {fd:int}{st:status}
+  ( sfd: &socketfd(fd,st)
+  ) : bool
+
+fun {} socketfd_set_nodelay
+  {fd:int}{st:status}
+  ( sfd: &socketfd(fd,st)
+  ) : bool
+
+fun  socketfd_create_exn
   ( af: sa_family_t
   , st: socktype_t
   ) : [fd:int] socketfd(fd,init)
 
-fun socketfd_create_opt
+fun {} socketfd_create_opt
   ( af: sa_family_t
   , st: socktype_t
   ) : Option_vt(socketfd1(init))
 
-fun socketfd_bind_in{fd:int}(
+fun {} socketfd_bind_in{fd:int}(
    sfd: !socketfd(fd,init) >> sockalt(fd,bind,init,b) 
  , sockaddr: &sockaddr_in
 ) : #[b:bool] bool b
@@ -117,7 +132,7 @@ fun socketfd_close_exn{fd:int}{st:status}
   ( sfd: socketfd(fd,st)
   ) : void
 
-fun socketfd_close{fd:int}{st:status}
+fun {} socketfd_close{fd:int}{st:status}
   ( sfd: &socketfd(fd,st) >> sockopt(fd,st,~b)
   ) : #[b:bool] bool b
 
@@ -126,21 +141,23 @@ typedef socketfd_create_bind_params = @{
   , st= socktype_t
   , nonblocking = bool
   , reuseaddr   = bool
+  , nodelay = bool
+  , cloexec = bool
   , port= int
   , address = in_addr_nbo_t
 }
 
-fun socketfd_create_bind_port
+fun {} socketfd_create_bind_port
   ( sfd: &socketfd0? >> sockopt(bind, b)
   , p : &socketfd_create_bind_params
   ) : #[b:bool] bool b
 
-fun socketfd_listen{fd:int}
+fun {} socketfd_listen{fd:int}
   ( sfd: &socketfd(fd,bind) >> sockalt(fd,listen,bind,b)
   , backlog : intGt(0)
   ): #[b:bool] bool b
 
-fun socketfd_accept{fd:int}
+fun {} socketfd_accept{fd:int}
   ( sfd: !socketfd(fd,listen)
   , cfd: &socketfd0? >> sockopt(conn,b)
   ): #[b:bool] bool b
@@ -150,6 +167,8 @@ typedef socketfd_setup_params = @{
   , st = socktype_t
   , nonblocking = bool
   , reuseaddr   = bool
+  , nodelay = bool
+  , cloexec = bool
   , port = int
   , address = in_addr_nbo_t
   , backlog = intGt(0)
@@ -164,7 +183,7 @@ prfn socketfd_params_elim{l:addr}
   , pf2 : socketfd_create_bind_params @ l
   ): void
 
-fun socketfd_setup(
+fun {} socketfd_setup(
    sfd: &socketfd0? >> sockopt(listen,b)
  , params : &socketfd_setup_params
 ) : #[b:bool] bool b

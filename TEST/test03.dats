@@ -61,7 +61,7 @@ implement main0 () = println!("Hello [test03]")
 
     var evloop_params : async_tcp_params = (@{
       , threads = i2sz(1)
-      , maxevents = i2sz(256)
+      , maxevents = i2sz(1024)
       } : async_tcp_params)
 
     var lsock_params : socketfd_setup_params = (@{
@@ -69,6 +69,8 @@ implement main0 () = println!("Hello [test03]")
       , st = SOCK_STREAM 
       , nonblocking = false // handled by async_tcp_pool
       , reuseaddr = true
+      , nodelay = true
+      , cloexec = true
       , port = 8888
       , address = in_addr_hbo2nbo (INADDR_ANY)
       , backlog = 24
@@ -181,9 +183,10 @@ implement main0 () = println!("Hello [test03]")
                             val sock = $UNSAFE.castvwtp1{socketfd1(conn)}(info.sock)
                             prval () = fold@env 
                             val () = async_tcp_pool_mod_exn( pool, sock, EPOLLOUT, env)
-                            prval () = $UNSAFE.cast2void( sock ) 
+                            prval () = $UNSAFE.cast2void( sock )
                          }
                        | close_sock() => {
+                            val () = async_tcp_pool_del_exn( pool, info.sock )
                             val () = info.status := Dispose()
                             prval () = fold@env 
                         }

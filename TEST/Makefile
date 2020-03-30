@@ -6,7 +6,7 @@ RMF=rm -f
 PATSCC=$(PATSHOMEQ)/bin/patscc
 
 PATSFLAGS=-DATS_MEMALLOC_LIBC
-CFLAGS=-O2
+CFLAGS=-O2 -pg
 
 all:: test00
 test00: test00.dats ; $(PATSCC) $(PATSFLAGS) $(CFLAGS) -o $@ $< 
