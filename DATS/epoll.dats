@@ -3,6 +3,7 @@
 
 #include "share/atspre_staload.hats"
 staload "libats/libc/SATS/sys/socket.sats"
+staload "libats/libc/SATS/errno.sats"
 staload "./../SATS/socketfd.sats"
 staload "./../SATS/epoll.sats"
 
@@ -23,11 +24,23 @@ eek_has( e1,e2 )
 implement
 epollfd_add0( efd, sfd, events, data )
   = let
+      (** Ignore EINTR **)
+      fun loop
+      ( efd: !epollfd, sfd: !socketfd0, event: &epoll_event )
+      : intBtwe(~1,0) =
+          if epoll_ctl(efd,EPOLL_CTL_ADD,sfd,event) = 0
+          then 0
+          else 
+            if the_errno_test(EINTR)
+            then loop( efd, sfd, event )
+            else ~1
+
       var event = (@{
           events = events
         , data = data 
         }): epoll_event
-     in epoll_ctl( efd, EPOLL_CTL_ADD, sfd, event )
+
+     in loop( efd, sfd, event )
     end 
 
 implement

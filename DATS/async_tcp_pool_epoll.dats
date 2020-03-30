@@ -83,9 +83,9 @@ fun {sockenv:vtype}
   : void = pool.clients := list_vt_filterlin<sockenv>(  pool.clients )
       where {
           implement list_vt_filterlin$clear<sockenv>( x ) 
-            = $effmask_all( sockenv$free<sockenv>( x ) )
+            = $effmask_all( sockenv$free<sockenv>( x ) ) 
           implement list_vt_filterlin$pred<sockenv>( x ) 
-            = $effmask_all( sockenv$isdisposed<sockenv>( x ) )
+            = $effmask_all( ~sockenv$isdisposed<sockenv>( x ) )
       }
   
 implement {a}
@@ -221,35 +221,6 @@ async_tcp_pool_run( pool, env )
                     async_tcp_pool_error<env><sockenv>(pool, env, senv ) 
                | eek_has(events, EPOLLHUP ) => 
                     async_tcp_pool_hup<env><sockenv>(pool, env, senv )
-                (*
-               | pool.lfd = g1ofg0(fd) =>
-                  {
-                    vtypedef accept_state = @{
-                       pool = async_tcp_pool
-                     , env = env
-                    }
-
-                    val lfd = $UNSAFE.castvwtp1{socketfd1(listen)}(pool.lfd)
-
-                    var accs = (@{
-                        pool = pool
-                      , env = env 
-                      }: accept_state)
-
-                    implement
-                    socketfd_accept_all$withfd<accept_state>(cfd,accs) = 
-                      async_tcp_pool_accept<env>(accs.pool, cfd, accs.env )
-
-                    val ()   = socketfd_accept_all<accept_state>(lfd, accs)
-
-                    val () = 
-                      ( pool := accs.pool;
-                        env := accs.env
-                      )
-
-                    prval () = $UNSAFE.cast2void(lfd)
-                  }
-                *)
                | _ => {
                    val () = async_tcp_pool_process<sockenv>(pool, events, senv ) 
                    prval () = $UNSAFE.cast2void(senv)
