@@ -169,8 +169,8 @@ socketfd_create_bind_port(sfd,p)
                 { 
                   var n : int = 1 
                   val _ = assertloc( setsockopt( $UNSAFE.castvwtp1{int}(sfd), SOL_SOCKET, SO_REUSEADDR, n, sizeof<int> ) > ~1 )
-                  var n : int = 1 
-                  val _ = assertloc( setsockopt( $UNSAFE.castvwtp1{int}(sfd), SOL_SOCKET, SO_REUSEPORT, n, sizeof<int> ) > ~1 )
+                  //var n : int = 1 
+                  //val _ = assertloc( setsockopt( $UNSAFE.castvwtp1{int}(sfd), SOL_SOCKET, SO_REUSEPORT, n, sizeof<int> ) > ~1 )
                 }
             else () 
           val () = 

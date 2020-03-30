@@ -7,6 +7,13 @@
   occur with an onread
 - Depreciate "accept", but keep utilities
 
+- A better interface for adding sockets to the pool is needed.
+  The pool should set flags on its own (perhaps in an update step like in libh2o).
+  Needing to share the same variable (socket + info) kind of sucks.
+
+- Can't mod flags!!!
+
+
 register_read<servenv,sockenv>( sk, servenv )
 impl sock_onread<sockenv>( pool, events, sockenv ) =
      if sockenv_is_listening( sockenv ) =>

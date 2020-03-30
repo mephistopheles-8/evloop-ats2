@@ -113,8 +113,8 @@ fun socketfd_bind_in{fd:int}(
  , sockaddr: &sockaddr_in
 ) : #[b:bool] bool b
 
-fun socketfd_close_exn
-  ( sfd: socketfd0
+fun socketfd_close_exn{fd:int}{st:status}
+  ( sfd: socketfd(fd,st)
   ) : void
 
 fun socketfd_close{fd:int}{st:status}

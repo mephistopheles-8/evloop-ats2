@@ -28,13 +28,13 @@ fun {a:vtype}
 (** We may not need to consume socketfd ? It's expected the user maintain them in sockenv **)
 fun {}
   async_tcp_pool_add{sockenv:vtype}{fd:int}{st:status}
-  ( &async_tcp_pool(sockenv), &socketfd(fd,st) >> sockopt(fd,st,~b), async_tcp_event, &sockenv >> opt(sockenv,~b) )
+  ( &async_tcp_pool(sockenv), &socketfd(fd,st), async_tcp_event, &sockenv >> opt(sockenv,~b) )
   : #[b:bool] bool b 
 
 
 fun {}
   async_tcp_pool_add_exn{sockenv:vtype}{fd:int}
-  ( &async_tcp_pool(sockenv), socketfd(fd), async_tcp_event, sockenv )
+  ( &async_tcp_pool(sockenv), &socketfd(fd), async_tcp_event, sockenv )
   : void
 
 fun {}
@@ -48,7 +48,7 @@ fun {}
   : void
 
 (** user **)
-fun {senv:vtype} sockenv$free( senv ) : void 
+fun {senv:vtype} sockenv$free( senv ) :  void 
 fun {senv:vtype} sockenv$isdisposed( !senv ) : bool
 
 fun {env:vt@ype+}{senv:vtype} 
@@ -68,5 +68,5 @@ fun {env:vt@ype+}
 
 fun {sockenv:vtype} 
   async_tcp_pool_process
-  ( &async_tcp_pool(sockenv), async_tcp_event, sockenv )
+  ( &async_tcp_pool(sockenv), async_tcp_event, !sockenv >> _ )
   : void

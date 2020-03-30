@@ -43,7 +43,6 @@ epollfd_create_exn ()
        else $raise EpollCreateExn()
           where {
               prval None_v(  ) = pf
-
           }
     end
 
