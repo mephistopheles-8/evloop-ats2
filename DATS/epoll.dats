@@ -31,7 +31,7 @@ epollfd_add0( efd, sfd, events, data )
           if epoll_ctl(efd,EPOLL_CTL_ADD,sfd,event) = 0
           then 0
           else 
-            if the_errno_test(EINTR)
+            if the_errno_test(EINTR) || the_errno_test(EAGAIN)
             then loop( efd, sfd, event )
             else ~1
 

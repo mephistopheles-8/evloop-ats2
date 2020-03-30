@@ -125,7 +125,7 @@ async_tcp_pool_add{socketenv}{fd}( pool, cfd, evts, senv ) =
                   end
                 else
                   let
-                  in if the_errno_test(EINTR)
+                  in if the_errno_test(EINTR) 
                      then loop( pool, cfd, evts, senv )
                      else false where {
                         prval () = opt_some( senv )
@@ -157,6 +157,26 @@ async_tcp_pool_del{fd}( pool, cfd ) =
   end
 
 implement {}
+async_tcp_pool_mod{sockenv}{fd}( pool, cfd, evts, senv ) =
+  let
+    (** ignore EINTR **) 
+    fun loop{fd:int}{st:status} 
+    ( pool: &async_tcp_pool(sockenv), cfd: !socketfd(fd,st), evts :  async_tcp_event,  senv : !sockenv )
+    : bool =
+       let
+          var evt = epoll_event_empty()
+          val () = evt.data.ptr := $UNSAFE.castvwtp1{ptr}( senv )
+          val () = evt.events := evts
+          val err =  epoll_ctl( pool.efd, EPOLL_CTL_MOD, cfd, evt )
+        in ifcase 
+            | err = 0 => true
+            | the_errno_test(EINTR)  => loop( pool, cfd, evts, senv )
+            | _ => false 
+       end 
+  in loop( pool, cfd, evts, senv)
+  end
+
+implement {}
 async_tcp_pool_add_exn{fd}( pool, cfd, evts, senv ) =
   let
     var senv = senv
@@ -172,11 +192,17 @@ async_tcp_pool_del_exn{fd}( pool, cfd ) =
   in
   end
 
-
+implement {}
+async_tcp_pool_mod_exn{fd}( pool, cfd, evts, senv ) =
+  let
+    val () = assertloc( async_tcp_pool_mod<>(pool,cfd,evts,senv) )
+  in
+  end
 
 implement {env}{senv}
 async_tcp_pool_hup( pool, env, senv ) = (
-  sockenv$free<senv>(senv)
+  sockenv$free<senv>(senv);
+  println!("HUP");
 )
 
 implement {env}{senv}
@@ -184,16 +210,6 @@ async_tcp_pool_error( pool, env, senv ) = (
     perror("async_tcp_pool:epoll");
     sockenv$free<senv>(senv)
   )
-(*
-implement {env}
-async_tcp_pool_accept{fd}( pool, cfd, env ) =
-  let
-    var cfd = cfd
-    val () = assertloc( async_tcp_pool_add<>{fd}(pool,cfd, EPOLLIN lor EPOLLET ) )
-    prval () = sockopt_unnone{conn}{fd}( cfd )
-  in
-  end
-*)
 
 implement  {env}{sockenv}
 async_tcp_pool_run( pool, env )  

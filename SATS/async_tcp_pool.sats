@@ -38,6 +38,16 @@ fun {}
   : void
 
 fun {}
+  async_tcp_pool_mod{sockenv:vtype}{fd:int}{st:status}
+  ( &async_tcp_pool(sockenv), !socketfd(fd,st), async_tcp_event, !sockenv )
+  : bool 
+
+fun {}
+  async_tcp_pool_mod_exn{sockenv:vtype}{fd:int}
+  ( &async_tcp_pool(sockenv), !socketfd(fd), async_tcp_event, !sockenv )
+  : void
+
+fun {}
   async_tcp_pool_del{fd:int}{st:status}
   ( &async_tcp_pool, !socketfd(fd,st) )
   : bool
