@@ -39,7 +39,6 @@ datatype conn_status(status) =
   | Listen(listen)
   | {st:status} 
     Dispose(st)
-  | Unregistered(conn)
 
 
 datatype parse_status = 
@@ -253,7 +252,7 @@ implement main0 () = println!("Hello [test03]")
                       prval () = $UNSAFE.cast2void( sock ) 
                      in  
                     end
-                | _ => () where {
+                | Dispose() => () where {
                      // val () = print_current_time()
                      // val () = println!(" Dispose")
 
