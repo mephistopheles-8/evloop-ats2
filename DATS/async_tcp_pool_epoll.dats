@@ -203,14 +203,14 @@ async_tcp_pool_mod_exn{fd}( pool, cfd, evts, senv ) =
 
 implement {env}{senv}
 async_tcp_pool_hup( pool, env, senv ) = (
-  sockenv$free<senv>(senv);
+  sockenv$setdisposed<senv>(senv);
   println!("HUP");
 )
 
 implement {env}{senv}
 async_tcp_pool_error( pool, env, senv ) = (
-    perror("async_tcp_pool:epoll");
-    sockenv$free<senv>(senv)
+    sockenv$setdisposed<senv>(senv);
+    println!("ERR");
   )
 
 implement  {env}{sockenv}
@@ -235,10 +235,14 @@ async_tcp_pool_run( pool, env )
 
             val () =
               ifcase
-               | eek_has(events, EPOLLERR ) => 
-                    async_tcp_pool_error<env><sockenv>(pool, env, senv ) 
-               | eek_has(events, EPOLLHUP ) => 
-                    async_tcp_pool_hup<env><sockenv>(pool, env, senv )
+               | eek_has(events, EPOLLERR ) => { 
+                  val () = async_tcp_pool_error<env><sockenv>(pool, env, senv )
+                  prval () = $UNSAFE.cast2void(senv)
+                } 
+               | eek_has(events, EPOLLHUP ) => { 
+                    val () =  async_tcp_pool_hup<env><sockenv>(pool, env, senv )
+                    prval () = $UNSAFE.cast2void(senv)
+                  }
                | _ => {
                    val () = async_tcp_pool_process<sockenv>(pool, events, senv ) 
                    prval () = $UNSAFE.cast2void(senv)
@@ -257,12 +261,14 @@ async_tcp_pool_run( pool, env )
         let
           val () = async_tcp_pool_clear_disposed<sockenv>( pool )
           val n = epoll_wait(pool.efd, ebuf, sz2i(ebsz), ~1)
-          
-          val () = assertloc( n >= 0 )
-          
+         
           var i : [i:nat] int i
   
-          val () = loop_evts(pool,ebuf,i2sz(n),env)
+          val () = (
+                  if n >= 0 then loop_evts(pool,ebuf,i2sz(n),env) 
+                  else if ~the_errno_test(EINTR) && ~the_errno_test(EAGAIN) 
+                       then perror("epoll")
+              ) 
           
         in loop_epoll( pool,ebuf,ebsz, env )
         end
@@ -305,9 +311,19 @@ async_tcp_pool_run( pool, env )
             spawn_threads( pool, env, n_threads - 1)  
           end
         else ()
-     
+
+    val maxevts = pool.maxevents 
+    val ebuf = arrayptr_make_elt<epoll_event>( maxevts, epoll_event_empty())
+    val (pf | par ) = arrayptr_takeout_viewptr( ebuf )
+    val () = loop_epoll( pool, !par, maxevts, env ) 
+    val () = free(ebuf)
+        where { prval () = arrayptr_addback( pf | ebuf ) }
+
+  in
+    (* 
     in spawn_threads( pool, env, i2sz(1)(*pool.threads*));
       while (true) (ignoret(sleep(1000)));
+    *)
     (*
     in 
       loop_epoll( pool, env )

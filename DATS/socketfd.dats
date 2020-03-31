@@ -38,6 +38,7 @@ exception SocketfdCloseExn of socketfd0
 
 macdef SO_REUSEPORT = $extval(int, "SO_REUSEPORT")
 macdef SO_REUSEADDR = $extval(int, "SO_REUSEADDR")
+macdef SO_ERROR = $extval(int, "SO_ERROR")
 macdef SOL_SOCKET = $extval(int, "SOL_SOCKET")
 macdef TCP_NODELAY = $extval(int, "TCP_NODELAY")
 macdef IPPROTO_TCP = $extval(int, "IPPROTO_TCP")
@@ -45,7 +46,11 @@ macdef FD_CLOEXEC = $extval(fcntlflags, "FD_CLOEXEC")
 
 extern
 fn setsockopt( int, int, int, &int, size_t (sizeof(int)) ) : int = "mac#"
+extern
+fn getsockopt( int, int, int, &int, size_t (sizeof(int)) ) : int = "mac#"
 
+extern
+fn strerror( int ) : string = "mac#"
 
 implement {}
 socketfd_create( sfd, af, st )
@@ -94,6 +99,21 @@ socketfd_set_nodelay( sfd )
       val st = setsockopt( $UNSAFE.castvwtp1{int}(sfd), IPPROTO_TCP, TCP_NODELAY, n, sizeof<int> ) 
   
   }
+
+implement {}
+socketfd_get_error_code( sfd ) 
+  = (if st > ~1 then n else st) where {
+      var n : int = 0 
+      val st = setsockopt( $UNSAFE.castvwtp1{int}(sfd), SOL_SOCKET, SO_ERROR, n, sizeof<int> ) 
+  
+  }
+
+implement {}
+socketfd_get_error_string( sfd ) 
+  = str where { val x = socketfd_get_error_code( sfd )
+      val str = if x = ~1 then "Could not get error code"
+                          else strerror(x)
+      }
 
 implement 
 socketfd_create_exn(af,st)

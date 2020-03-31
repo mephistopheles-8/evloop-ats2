@@ -18,6 +18,8 @@ datatype conn_status(status) =
   | Listen(listen)
   | {st:status} 
     Dispose(st)
+  | Unregistered(conn)
+
 
 datatype parse_status = 
   | psnil
@@ -33,6 +35,7 @@ vtypedef client_info(st:status) = @{
   , sock = socketfd1(st)
   , bytes_read = size_t
   , parse_status = parse_status
+  , reqs_served = int
   }
 
 datavtype client_state =
@@ -45,6 +48,11 @@ sockenv$free<client_state>( x ) =
    | ~CLIENT(info) => socketfd_close_exn(info.sock)
 
 implement 
+sockenv$setdisposed<client_state>( x ) =
+  case+ x of
+   | @CLIENT(info) => { val () = (info.status := Dispose()) prval () = fold@x }
+
+implement 
 sockenv$isdisposed<client_state>( x ) = (
   case+ info.status of 
   | Dispose() => true
@@ -53,6 +61,16 @@ sockenv$isdisposed<client_state>( x ) = (
     val CLIENT(info) = x 
   } 
  
+implement (env:vt@ype+)
+async_tcp_pool_error<env><client_state>( pool, env, senv ) = (
+  ) where {
+      val @CLIENT(info) = senv 
+      val ( ) = (
+          println!(socketfd_get_error_string(info.sock));
+      )
+      prval () = fold@senv
+      val () =sockenv$setdisposed<client_state>(senv);
+    }
 
 implement main0 () = println!("Hello [test03]")
   where {
@@ -67,7 +85,7 @@ implement main0 () = println!("Hello [test03]")
     var lsock_params : socketfd_setup_params = (@{
         af = AF_INET
       , st = SOCK_STREAM 
-      , nonblocking = false // handled by async_tcp_pool
+      , nonblocking = true // handled by async_tcp_pool
       , reuseaddr = true
       , nodelay = true
       , cloexec = true
@@ -90,6 +108,7 @@ implement main0 () = println!("Hello [test03]")
                   , sock = $UNSAFE.castvwtp1{socketfd1(listen)}( lfd )
                   , bytes_read = i2sz(0)
                   , parse_status = psnil
+                  , reqs_served = 0
                 })
 
               val () = assertloc( async_tcp_pool_add{client_state}( p, lfd , EPOLLIN, linfo) )
@@ -108,6 +127,7 @@ implement main0 () = println!("Hello [test03]")
                               , sock = $UNSAFE.castvwtp1{socketfd1(conn)}( cfd )
                               , bytes_read = i2sz(0)
                               , parse_status = psnil
+                              , reqs_served = 0
                             })
                           val () = assertloc( async_tcp_pool_add{client_state}( pool, cfd , EPOLLIN, cinfo) )
                           prval () = opt_unnone( cinfo )
@@ -170,7 +190,7 @@ implement main0 () = println!("Hello [test03]")
                                  | _         => loop(info,buf,sz)
                               end
                             else  ifcase
-                                  | ssz = 0 => close_sock()
+                                  | ssz = 0 => close_sock() 
                                   | the_errno_test(EAGAIN) => keep_open()
                                   | _ => close_sock() 
                          end
@@ -205,7 +225,7 @@ implement main0 () = println!("Hello [test03]")
                       prval () = $UNSAFE.cast2void( sock ) 
                      in  
                     end
-                | Dispose() => () where { prval () = fold@env }
+                | _ => () where { prval () = fold@env }
 
               ) where {
                 val @CLIENT(info) = env
