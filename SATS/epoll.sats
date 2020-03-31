@@ -31,7 +31,7 @@ macdef EPOLLWAKEUP     = $extval(epoll_event_kind,"EPOLLWAKEUP")
 macdef EPOLLONESHOT    = $extval(epoll_event_kind,"EPOLLONESHOT")
 macdef EPOLLET         = $extval(epoll_event_kind,"EPOLLET")
 
-fn epoll_event_kind_lor ( epoll_event_kind, epoll_event_kind ) 
+fun {} epoll_event_kind_lor ( epoll_event_kind, epoll_event_kind ) 
   :<> epoll_event_kind
 
 overload lor with epoll_event_kind_lor
@@ -166,7 +166,7 @@ fn epollfd_close_exn{fd:int}(efd: epollfd(fd))
 fn epoll_event_empty () : epoll_event
 
 
-fn eek_has( e1: epoll_event_kind, e2: epoll_event_kind ) 
+fun {} eek_has( e1: epoll_event_kind, e2: epoll_event_kind ) 
   :<> bool
 
 

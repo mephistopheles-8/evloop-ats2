@@ -104,7 +104,6 @@ async_tcp_pool_close_exn( pool ) =
 implement {}
 async_tcp_pool_add{socketenv}{fd}( pool, cfd, evts, senv ) =
   if socketfd_set_nonblocking( cfd ) &&
-     socketfd_set_nodelay( cfd ) &&
      socketfd_set_cloexec( cfd ) 
   then
     let

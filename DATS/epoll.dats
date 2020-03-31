@@ -12,11 +12,11 @@ exception EpollCreateExn
 exception EpollCloseExn of (epollfd)
 #endif
 
-implement
+implement {}
 epoll_event_kind_lor( e1, e2 ) =
   $UNSAFE.cast{epoll_event_kind}( eek2ui(e1) lor eek2ui(e2) ) 
 
-implement
+implement {}
 eek_has( e1,e2 ) 
   = $UNSAFE.cast{int}(eek2ui(e1) land eek2ui(e2)) != 0 
 

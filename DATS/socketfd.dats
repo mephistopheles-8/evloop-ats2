@@ -13,6 +13,7 @@ local
 %}
 in end
 
+staload "libats/libc/SATS/stdio.sats"
 staload "libats/libc/SATS/sys/socket.sats"
 staload "libats/libc/SATS/sys/socket_in.sats"
 staload "libats/libc/SATS/netinet/in.sats"
@@ -377,7 +378,10 @@ socketfd_accept_all{fd:int}( sfd, env )
       else 
         let
           prval () = sockopt_unnone(cfd)
-        in ()
+        
+
+        in if ~the_errno_test(EAGAIN) && ~the_errno_test(EWOULDBLOCK)
+           then perror("accept")
         end
   end
 

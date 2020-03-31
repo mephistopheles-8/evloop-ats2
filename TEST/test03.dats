@@ -12,6 +12,27 @@ staload "libats/libc/SATS/fcntl.sats"
 absreimpl async_tcp_params
 absreimpl async_tcp_event
 
+
+%{
+#include <inttypes.h>
+#include <math.h>
+#include <stdio.h>
+#include <time.h>
+
+void print_current_time (void)
+{
+    struct timespec spec;
+
+    clock_gettime(CLOCK_REALTIME, &spec);
+
+    printf("Current time: %"PRIdMAX".%03ld",
+           spec.tv_sec, spec.tv_nsec);
+}
+%}
+
+extern
+fn print_current_time () : void = "mac#"
+
 datatype conn_status(status) = 
   | Read(conn)
   | Write(conn)
@@ -72,6 +93,7 @@ async_tcp_pool_error<env><client_state>( pool, env, senv ) = (
       val () =sockenv$setdisposed<client_state>(senv);
     }
 
+macdef SOMAXCONN = $extval(intGt(0), "SOMAXCONN")
 implement main0 () = println!("Hello [test03]")
   where {
     var p : async_tcp_pool(client_state)?
@@ -79,7 +101,7 @@ implement main0 () = println!("Hello [test03]")
 
     var evloop_params : async_tcp_params = (@{
       , threads = i2sz(1)
-      , maxevents = i2sz(1024)
+      , maxevents = i2sz(256)
       } : async_tcp_params)
 
     var lsock_params : socketfd_setup_params = (@{
@@ -88,10 +110,10 @@ implement main0 () = println!("Hello [test03]")
       , nonblocking = true // handled by async_tcp_pool
       , reuseaddr = true
       , nodelay = true
-      , cloexec = true
+      , cloexec = false
       , port = 8888
       , address = in_addr_hbo2nbo (INADDR_ANY)
-      , backlog = 24
+      , backlog = SOMAXCONN
     })
 
     val () =
@@ -119,6 +141,8 @@ implement main0 () = println!("Hello [test03]")
                 case+ info.status of
                 | Listen() =>
                     let
+                    // val () = print_current_time()
+                     // val () = println!(": ", socketfd_value(info.sock)," Listen")
                         implement
                         socketfd_accept_all$withfd<async_tcp_pool(client_state)>(cfd,pool) = {
                           var cfd = cfd
@@ -139,6 +163,8 @@ implement main0 () = println!("Hello [test03]")
                     end
                 | Read() =>
                     let
+                      //val () = print_current_time()
+                      //val () = println!(": ", socketfd_value(info.sock)," Read")
                       var buf = @[byte][BUFSZ](i2byte(0))
 
                       (** The ol' fast-forward to the \r\n\r\n trick
@@ -216,8 +242,10 @@ implement main0 () = println!("Hello [test03]")
                     end
                 | Write() =>
                     let
+                     // val () = print_current_time()
+                     // val () = println!(": ", socketfd_value(info.sock)," Write")
                       val ssz = socketfd_write_string( 
-                        info.sock, "HTTP/2.0 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 10\r\n\r\nHello guys", i2sz(75) )
+                        info.sock, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 10\r\n\r\nHello guys", i2sz(75) )
                       val sock = $UNSAFE.castvwtp1{socketfd1(conn)}(info.sock)
                       val () = info.status := Read()
                       prval () = fold@env
@@ -225,7 +253,11 @@ implement main0 () = println!("Hello [test03]")
                       prval () = $UNSAFE.cast2void( sock ) 
                      in  
                     end
-                | _ => () where { prval () = fold@env }
+                | _ => () where {
+                     // val () = print_current_time()
+                     // val () = println!(" Dispose")
+
+                       prval () = fold@env }
 
               ) where {
                 val @CLIENT(info) = env
