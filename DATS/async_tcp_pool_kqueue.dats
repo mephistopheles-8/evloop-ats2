@@ -38,9 +38,8 @@ async_tcp_pool_create( pool, params ) =
        then
           let
               prval Some_v(pep) =  pep
-              val kfd = kqueuefd_encode( pep | kfd ) 
-              val () =
-                pool := (@{    
+              val kfd = kqueuefd_encode( pep | kfd )
+              val () = ptr_set(view@pool | addr@pool, @{    
                     kfd = kfd
                   , maxevents = params.maxevents
                   , clients = list_vt_nil()
