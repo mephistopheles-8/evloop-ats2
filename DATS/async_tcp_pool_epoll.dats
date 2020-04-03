@@ -252,8 +252,6 @@ async_tcp_pool_run( pool, env )
           val () = async_tcp_pool_clear_disposed<sockenv>( pool )
           val n = epoll_wait(pool.efd, ebuf, sz2i(ebsz), ~1)
          
-          var i : [i:nat] int i
-  
           val () = (
                   if n >= 0 then loop_evts(pool,ebuf,i2sz(n),env) 
                   else if ~the_errno_test(EINTR) && ~the_errno_test(EAGAIN) 

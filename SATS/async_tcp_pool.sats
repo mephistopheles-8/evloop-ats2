@@ -28,13 +28,13 @@ fun {a:vtype}
 (** We may not need to consume socketfd ? It's expected the user maintain them in sockenv **)
 fun {}
   async_tcp_pool_add{sockenv:vtype}{fd:int}{st:status}
-  ( &async_tcp_pool(sockenv), &socketfd(fd,st), async_tcp_event, &sockenv >> opt(sockenv,~b) )
+  ( &async_tcp_pool(sockenv), !socketfd(fd,st), async_tcp_event, &sockenv >> opt(sockenv,~b) )
   : #[b:bool] bool b 
 
 
 fun {}
   async_tcp_pool_add_exn{sockenv:vtype}{fd:int}
-  ( &async_tcp_pool(sockenv), &socketfd(fd), async_tcp_event, sockenv )
+  ( &async_tcp_pool(sockenv), !socketfd(fd), async_tcp_event, sockenv )
   : void
 
 fun {}

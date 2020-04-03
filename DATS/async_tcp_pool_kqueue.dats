@@ -5,9 +5,7 @@ staload "libats/libc/SATS/sys/socket.sats"
 staload "libats/libc/SATS/netinet/in.sats"
 staload "libats/libc/SATS/unistd.sats"
 staload "libats/libc/SATS/stdio.sats"
-staload "libats/SATS/athread.sats"
-staload _ = "libats/DATS/athread.dats"
-staload _ = "libats/DATS/athread_posix.dats"
+staload "libats/libc/SATS/errno.sats"
 
 staload "./../SATS/socketfd.sats"
 staload "./../SATS/kqueue.sats"
@@ -18,186 +16,203 @@ staload "./../SATS/async_tcp_pool.sats"
 (** FIXME: Make sure env is handled safely when threading is enabled **)
 
 absimpl
-async_tcp_pool = @{
-   lfd = socketfd1(listen)
- , kfd = kqueuefd
+async_tcp_pool(a) = @{
+   kfd = kqueuefd
  , maxevents = sizeGt(0)
- , threads   = sizeGt(0) 
+ , clients   = List0_vt(a) 
 }
 
 absimpl
 async_tcp_params = @{
-    port = int
-  , address = in_addr_nbo_t
-  , backlog = intGt(0)
-  , maxevents = sizeGt(0)
-  , threads   = sizeGt(0)
-  , reuseaddr = bool 
+    maxevents = sizeGt(0)
   }
 
 absimpl
-async_tcp_event = kevent_action
-(*
-absimpl
-kevent_action = kevent_flag
-*)
+async_tcp_event = evfilt
 
-  
-implement {}
+implement {a}
 async_tcp_pool_create( pool, params ) =
-  let
-    var sp : socketfd_setup_params = @{
-          af = AF_INET
-        , st = SOCK_STREAM
-        , nonblocking = true 
-        , reuseaddr   = params.reuseaddr 
-        , port = params.port
-        , address = params.address
-        , backlog = params.backlog
-      }
-
-    var sfd : socketfd0?
-  
-   in  if socketfd_setup( sfd, sp )
-      then
-          let 
-            prval () = sockopt_unsome( sfd )
-            val (pep | kfd) = kqueue() 
-          in if kfd > ~1
-             then
-                let
-                    prval Some_v(pep) =  pep
-                    val kfd = kqueuefd_encode( pep | kfd ) 
-                    val () = assertloc( kqueuefd_add0( kfd, sfd, EVFILT_READ, EV_ADD ) = 0 )
-                    val () =
-                      pool := (@{    
-                          lfd = sfd
-                        , kfd = kfd
-                        , maxevents = params.maxevents
-                        , threads   = params.threads
-                       })
-                    prval () = opt_some(pool) 
-                 in true
-                end
-             else 
-                let
-                    prval None_v() =  pep
-                    prval () = opt_none(pool)
-                    val () = socketfd_close_exn( sfd )
-                 in false 
-                end
-         end
+    let 
+      val (pep | kfd) = kqueue() 
+    in if kfd > ~1
+       then
+          let
+              prval Some_v(pep) =  pep
+              val kfd = kqueuefd_encode( pep | kfd ) 
+              val () =
+                pool := (@{    
+                    kfd = kfd
+                  , maxevents = params.maxevents
+                  , clients = list_vt_nil()
+                 })
+              prval () = opt_some(pool) 
+           in true
+          end
        else 
-        let
-            prval () = sockopt_unnone( sfd )
-            prval () = opt_none(pool)
-         in false 
-        end
-  end
+          let
+              prval None_v() =  pep
+              prval () = opt_none(pool)
+           in false 
+          end
+   end
 
-implement {}
+implement {a}
 async_tcp_pool_close_exn( pool ) =
   let
     val () =
       ( kqueuefd_close_exn( pool.kfd ); 
-        socketfd_close_exn( pool.lfd );
+       list_vt_freelin<a>( pool.clients ) where {
+          implement list_vt_freelin$clear<a>( x ) 
+            = $effmask_all( sockenv$free<a>( x ) )
+        } 
       )
   in 
   end
 
+fun {sockenv:vtype} 
+  async_tcp_pool_clear_disposed
+  ( pool: &async_tcp_pool(sockenv) )
+  : void = pool.clients := list_vt_filterlin<sockenv>(  pool.clients )
+      where {
+          implement list_vt_filterlin$clear<sockenv>( x ) 
+            = $effmask_all( sockenv$free<sockenv>( x ) ) 
+          implement list_vt_filterlin$pred<sockenv>( x ) 
+            = $effmask_all( ~sockenv$isdisposed<sockenv>( x ) )
+      }
+  
+implement {a}
+async_tcp_pool_close_exn( pool ) =
+  let
+    val () =
+      ( kqueuefd_close_exn( pool.kfd ); 
+       list_vt_freelin<a>( pool.clients ) where {
+          implement list_vt_freelin$clear<a>( x ) 
+            = $effmask_all( sockenv$free<a>( x ) )
+        } 
+      )
+  in 
+  end
 
 implement {}
-async_tcp_pool_add{fd}( pool, cfd, evts ) =
-  if socketfd_set_nonblocking( cfd )
+async_tcp_pool_add{socketenv}{fd}( pool, cfd, evts, senv ) =
+  if socketfd_set_nonblocking( cfd ) &&
+     socketfd_set_cloexec( cfd ) 
   then
-  let
-    val (pf | err) = kqueuefd_add1( pool.kfd, cfd, EVFILT_READ, evts  lor $UNSAFE.cast{kevent_action}(EV_DISPATCH)  ) 
-  in if err = 0
-     then 
-        let
-          prval Some_v( pfadd ) = pf 
-          prval () = kqueue_add_sfd_elim( pfadd , cfd )
-          prval () = sockopt_none( cfd )
-        in true
-        end
-      else
-        let
-          prval None_v( ) = pf 
-          prval () = sockopt_some( cfd )
-        in false
-        end
-  end 
+    let
+      (** Ignore EINTR **)
+      fun loop{fd:int}{st:status}
+        ( pool: &async_tcp_pool(socketenv)
+        , cfd: !socketfd(fd,st)
+        , evts: async_tcp_event
+        , senv: &socketenv >> opt(socketenv,~b) 
+      ): #[b:bool] bool b =
+          let
+              val p = $UNSAFE.castvwtp1{ptr}(senv)
+              var empt = kevent_empty()
+              val () = EV_SET(empt, cfd, evts, EV_ADD, kevent_fflag_empty, kevent_data_empty, p  )
+              val err =  kevent( pool.kfd, empt, 1, the_null_ptr, 0, the_null_ptr )
+           in if err = 0
+               then 
+                  let
+                    val () = pool.clients := list_vt_cons( senv, pool.clients )
+                    prval () = opt_none( senv )
+                  in true
+                  end
+                else
+                  let
+                  in if the_errno_test(EINTR) 
+                     then loop( pool, cfd, evts, senv )
+                     else false where {
+                        prval () = opt_some( senv )
+                      }
+                  end
+          end
+     in loop(pool, cfd, evts, senv) 
+    end 
   else false where {
-    prval () = sockopt_some( cfd )
+    prval () = opt_some( senv )
   }
 
  
 implement {}
 async_tcp_pool_del{fd}( pool, cfd ) =
   let
-    var empt = kevent_empty()
-    val () = EV_SET(empt, cfd, EVFILT_READ, EV_DELETE, kevent_fflag_empty, kevent_data_empty, the_null_ptr  )
-    val err =  kevent( pool.kfd, empt, 1, the_null_ptr, 0, the_null_ptr )
-  in err = 0
-     (*then if socketfd_close( cfd ) 
-          then true
-          else false
-     else
-      let
-        prval () = sockopt_some(cfd)
-      in false
-      end  *)
+    (** ignore EINTR **) 
+    fun loop{fd:int}{st:status} 
+    ( pool: &async_tcp_pool, cfd: !socketfd(fd,st) )
+    : bool =
+       let
+          var empt = kevent_empty()
+          val () = EV_SET(empt, cfd, EVFILT_READ lor EVFILT_WRITE , EV_DELETE, kevent_fflag_empty, kevent_data_empty, the_null_ptr  )
+          val err =  kevent( pool.kfd, empt, 1, the_null_ptr, 0, the_null_ptr )
+        in ifcase 
+            | err = 0 => true
+            | the_errno_test(EINTR) => loop( pool, cfd )
+            | _ => false 
+       end 
+  in loop( pool, cfd)
   end
 
+(** FIXME: this works, but is ugly **)
 implement {}
-async_tcp_pool_add_exn{fd}( pool, cfd, evts ) =
+async_tcp_pool_mod{sockenv}{fd}( pool, cfd, evts, senv ) =
+  if async_tcp_pool_del( pool, cfd )
+  then ( 
+       if async_tcp_pool_add( pool, cfd, evts, senv )
+       then true where {
+            prval () = opt_unnone( senv )
+          }
+       else false where {
+            prval () = opt_unsome( senv )
+            prval () = $UNSAFE.cast2void( senv )
+          }
+    ) where {
+      var senv = $UNSAFE.castvwtp1{sockenv}(senv)
+    }
+  else false
+
+implement {}
+async_tcp_pool_add_exn{fd}( pool, cfd, evts, senv ) =
   let
-    var cfd = cfd
-    val () = assertloc( async_tcp_pool_add<>(pool,cfd,evts) )
-    prval () = sockopt_unnone(cfd) 
+    var senv = senv
+    val () = assertloc( async_tcp_pool_add<>(pool,cfd,evts,senv) )
+    prval () = opt_unnone(senv) 
   in
   end
 
 implement {}
 async_tcp_pool_del_exn{fd}( pool, cfd ) =
   let
-//    var cfd = cfd
     val () = assertloc( async_tcp_pool_del<>(pool,cfd) )
-//    prval () = sockopt_unnone(cfd) 
   in
   end
 
-
-
-implement {env}
-async_tcp_pool_hup( pool, cfd, env ) =
-  ( socketfd_close_exn( cfd ) )
-
-implement {env}
-async_tcp_pool_error( pool, cfd, env ) =
-  ( if cfd = pool.lfd 
-    then exit_errmsg_void(1, "Error on listening socket");
-    perror("async_tcp_pool:kqueue");
-    socketfd_close_exn( cfd )
-  )
-
-implement {env}
-async_tcp_pool_accept{fd}( pool, cfd, env ) =
+implement {}
+async_tcp_pool_mod_exn{fd}( pool, cfd, evts, senv ) =
   let
-    var cfd = cfd
-    val () = assertloc( async_tcp_pool_add<>{fd}(pool,cfd, EV_ADD ) )
-    prval () = sockopt_unnone{conn}{fd}( cfd )
+    val () = assertloc( async_tcp_pool_mod<>(pool,cfd,evts,senv) )
   in
   end
 
+implement {env}{senv}
+async_tcp_pool_hup( pool, env, senv )  = (
+  sockenv$setdisposed<senv>(senv);
+  println!("HUP");
+)
 
-implement  {env}
+implement {env}{senv}
+async_tcp_pool_error( pool, env, senv ) = (
+    sockenv$setdisposed<senv>(senv);
+    println!("ERR");
+)
+
+implement  {env}{sockenv}
 async_tcp_pool_run( pool, env )  
   = let
       fun loop_evts
         {n,m:nat | m <= n}
       (
-        pool : &async_tcp_pool
+        pool : &async_tcp_pool(sockenv)
       , ebuf : &(@[kevent][n])
       , nevts : size_t m
       , env  : &env >> _
@@ -209,57 +224,30 @@ async_tcp_pool_run( pool, env )
             val fd = $UNSAFE.cast{int}(evt.ident)
             val flags = evt.flags
             
-            macdef client_sock = 
-              $UNSAFE.castvwtp1{socketfd1(conn)}( fd )
+            var senv = 
+              $UNSAFE.castvwtp1{sockenv}( evt.udata )
 
             val () =
               ifcase
-               | kevent_status_has(flags2status(flags), EV_EOF ) => 
-                    async_tcp_pool_hup<env>(pool, client_sock, env )
-               | kevent_status_has(flags2status(flags), EV_ERROR ) => 
-                    async_tcp_pool_error<env>(pool, client_sock, env )
-                (* 
-               | pool.lfd = g1ofg0(fd) =>
-                  {
-                    vtypedef accept_state = @{
-                       pool = async_tcp_pool
-                     , env = env
-                    }
-
-                    val lfd = $UNSAFE.castvwtp1{socketfd1(listen)}(pool.lfd)
-
-                    var accs = (@{
-                        pool = pool
-                      , env = env 
-                      }: accept_state)
-
-                    implement
-                    socketfd_accept_all$withfd<accept_state>(cfd,accs) = 
-                      async_tcp_pool_accept<env>(accs.pool, cfd, accs.env )
-
-                    val ()   = socketfd_accept_all<accept_state>(lfd, accs)
-
-                    val () = 
-                      ( pool := accs.pool;
-                        env := accs.env
-                      )
-
-                    prval () = $UNSAFE.cast2void(lfd)
+               | kevent_status_has(flags2status(flags), EV_EOF ) => { 
+                    val () =  async_tcp_pool_hup<env><sockenv>(pool,  env, senv )
+                    prval () = $UNSAFE.cast2void(senv)
                   }
-                *)
-               | _ => (
-                 // async_tcp_pool_del_exn<>(pool, clisock );
-                  async_tcp_pool_process<env>(pool, $UNSAFE.cast{kevent_action}(flags), clisock, env ) 
-                ) where {
-                  val clisock = client_sock
-                } 
+               | kevent_status_has(flags2status(flags), EV_ERROR ) => { 
+                    val () = async_tcp_pool_error<env><sockenv>(pool, env, senv )
+                    prval () = $UNSAFE.cast2void(senv)
+                  }
+               | _ => {
+                  val () = async_tcp_pool_process<sockenv>(pool, $UNSAFE.cast{async_tcp_event}(flags), senv ) 
+                  prval () = $UNSAFE.cast2void(senv)
+                }
 
              in loop_evts(pool,ebuf,nevts-1,env)
             end
           else ()
  
       and loop_kqueue{n,m:nat | m <= n}(
-        pool : &async_tcp_pool
+        pool : &async_tcp_pool(sockenv)
       , ebuf : &(@[kevent][n])
       , ebsz : size_t m
       , env  : &env >> _
@@ -267,57 +255,20 @@ async_tcp_pool_run( pool, env )
         let
           val n = kevent(pool.kfd, the_null_ptr, 0,ebuf, sz2i(ebsz), the_null_ptr)
           
-          val () = assertloc( n >= 0 )
-          
-          var i : [i:nat] int i
+          val () = (
+                  if n >= 0 then loop_evts(pool,ebuf,i2sz(n),env) 
+                  else if ~the_errno_test(EINTR) && ~the_errno_test(EAGAIN) 
+                       then perror("kqueue")
+              ) 
   
-          val () = loop_evts(pool,ebuf,i2sz(n),env)
-          
         in loop_kqueue( pool,ebuf,ebsz, env )
         end
 
-      fun spawn_threads{n:nat} .<n>. (
-            pool: &async_tcp_pool
-          , env: &env >> _ 
-          , n_threads : size_t n
-        ): void =
-        if n_threads > 0
-        then
-          let
-            (** This cast should be benign **)
-            val p = $UNSAFE.castvwtp1{async_tcp_pool}(pool)
-
-            (** FIXME: This cast is unsafe **)
-            val e = $UNSAFE.castvwtp1{env}(env)
-
-            val _ = athread_create_cloptr_exn<>(
-              llam() => 
-                let 
-                  var rpool = p
-                  var renv = e   
-                  val maxevts = rpool.maxevents 
-                  val ebuf = arrayptr_make_elt<kevent>( maxevts, kevent_empty())
-                  val (pf | par ) = arrayptr_takeout_viewptr( ebuf ) 
-                in 
-                  loop_kqueue( rpool, !par, maxevts, renv );
-                  () where { prval () = arrayptr_addback( pf | ebuf ) };
-                  free( ebuf );
-                  () where { 
-                       prval () = $UNSAFE.cast2void(rpool)
-                       prval () = $UNSAFE.cast2void(renv)
-                     };
-                end
-             );
-          in  
-            spawn_threads( pool, env, n_threads - 1)  
-          end
-        else ()
-     
-    in spawn_threads( pool, env, pool.threads);
-      while (true) (ignoret(sleep(1000)));
-    (*
+      val maxevts = pool.maxevents 
+      val ebuf = arrayptr_make_elt<kevent>( maxevts, kevent_empty())
+      val (pf | par ) = arrayptr_takeout_viewptr( ebuf ) 
     in 
-      loop_kqueue( pool, env )
-    *)
+      loop_kqueue( pool, !par, maxevts, env );
+      free( ebuf )  where { prval () = arrayptr_addback( pf | ebuf ) };
     end 
 

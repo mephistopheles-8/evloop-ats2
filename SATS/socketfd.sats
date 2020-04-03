@@ -95,32 +95,32 @@ fun {} socketfd_create
 
 fun {} socketfd_set_nonblocking
   {fd:int}{st:status}
-  ( sfd: &socketfd(fd,st)
+  ( sfd: !socketfd(fd,st)
   ) : bool
 
 fun {} socketfd_set_cloexec
   {fd:int}{st:status}
-  ( sfd: &socketfd(fd,st)
+  ( sfd: !socketfd(fd,st)
   ) : bool
 
 fun {} socketfd_set_reuseaddr
   {fd:int}{st:status}
-  ( sfd: &socketfd(fd,st)
+  ( sfd: !socketfd(fd,st)
   ) : bool
 
 fun {} socketfd_set_nodelay
   {fd:int}{st:status}
-  ( sfd: &socketfd(fd,st)
+  ( sfd: !socketfd(fd,st)
   ) : bool
 
 fun {} socketfd_get_error_code
   {fd:int}{st:status}
-  ( sfd: &socketfd(fd,st)
+  ( sfd: !socketfd(fd,st)
   ) : int
 
 fun {} socketfd_get_error_string
   {fd:int}{st:status}
-  ( sfd: &socketfd(fd,st)
+  ( sfd: !socketfd(fd,st)
   ) : string
 
 fun  socketfd_create_exn
