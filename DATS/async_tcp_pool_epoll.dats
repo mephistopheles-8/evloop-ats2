@@ -225,14 +225,14 @@ async_tcp_pool_run( pool, env )
 
             val () =
               ifcase
-               | eek_has(events, EPOLLERR ) => { 
-                  val () = async_tcp_pool_error<env><sockenv>(pool, env, senv )
-                  prval () = $UNSAFE.cast2void(senv)
-                } 
                | eek_has(events, EPOLLHUP ) => { 
                     val () =  async_tcp_pool_hup<env><sockenv>(pool, env, senv )
                     prval () = $UNSAFE.cast2void(senv)
                   }
+               | eek_has(events, EPOLLERR ) => { 
+                  val () = async_tcp_pool_error<env><sockenv>(pool, env, senv )
+                  prval () = $UNSAFE.cast2void(senv)
+                } 
                | _ => {
                    val () = async_tcp_pool_process<sockenv>(pool, events, senv ) 
                    prval () = $UNSAFE.cast2void(senv)

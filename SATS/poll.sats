@@ -76,9 +76,9 @@ overload pe2si with poll_events2sint
 overload ps2si with poll_status2sint
 overload pe2ps with poll_events2status
 
-macdef POLLIN = $extval(poll_events,"POLLIN")
-macdef POLLPRI = $extval(poll_events,"POLLPRI")
-macdef POLLOUT = $extval(poll_events,"POLLOUT")
+macdef POLLIN = $extval(poll_status,"POLLIN")
+macdef POLLPRI = $extval(poll_status,"POLLPRI")
+macdef POLLOUT = $extval(poll_status,"POLLOUT")
 
 /* These values are defined in XPG4.2.  */
 macdef POLLRDNORM = $extval(poll_events,"POLLRDNORM")

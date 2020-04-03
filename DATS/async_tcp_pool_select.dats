@@ -147,15 +147,6 @@ async_tcp_pool_error( pool, cfd, env ) =
     socketfd_close_exn( cfd )
   )
 
-implement {env}
-async_tcp_pool_accept{fd}( pool, cfd, env ) =
-  let
-    var cfd = cfd
-    val () = assertloc( async_tcp_pool_add<>{fd}(pool,cfd, 0 ) )
-    prval () = sockopt_unnone{conn}{fd}( cfd )
-  in
-  end
-
 
 implement  {env}
 async_tcp_pool_run( pool, env )  
@@ -170,49 +161,13 @@ async_tcp_pool_run( pool, env )
         if i > 0
         then 
           if FD_ISSET( i, pool.read_set ) 
-          then (* 
-            if pool.lfd = i
-            then
-             {
-              vtypedef accept_state = @{
-                 pool = async_tcp_pool
-               , env = env
-              }
-
-              val lfd = $UNSAFE.castvwtp1{socketfd1(listen)}(pool.lfd)
-
-              var accs = (@{
-                  pool = pool
-                , env = env 
-                }: accept_state)
-
-              implement
-              socketfd_accept_all$withfd<accept_state>(cfd,accs) = 
-                async_tcp_pool_accept<env>(accs.pool, cfd, accs.env )
-
-              val ()   = socketfd_accept_all<accept_state>(lfd, accs)
-
-              val () = 
-                ( pool := accs.pool;
-                  env := accs.env
-                )
-
-              prval () = $UNSAFE.cast2void(lfd)
-              val () = loop_evts(pool, env, i-1)
-            }
-            else *)
-              let 
-                 (** Keep the oneshot semantics of epoll / kqueue versions
-                    by removing the fd from the pool.  They must 
-                    remove or re-add the socket manually.
-                    FIXME: replace with something less hackish.
-                 **)
-                val clisock = $UNSAFE.castvwtp0{socketfd1(conn)}(i)
-               in
-//                async_tcp_pool_del_exn<>( pool, clisock ); 
-                async_tcp_pool_process<env>(pool, 0, clisock, env );
-                loop_evts(pool, env, i-1) 
-              end 
+          then 
+            let 
+              val clisock = $UNSAFE.castvwtp0{socketfd1(conn)}(i)
+             in
+              async_tcp_pool_process<env>(pool, 0, clisock, env );
+              loop_evts(pool, env, i-1) 
+            end 
           else loop_evts(pool, env, i-1)
       else () 
 

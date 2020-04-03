@@ -197,16 +197,31 @@ async_tcp_pool_mod_exn{sockenv}{fd}( pool, cfd, evts, senv ) =
   end
 
 implement {env}{senv}
-async_tcp_pool_hup( pool, env, senv )  = (
-  sockenv$setdisposed<senv>(senv);
-  println!("HUP");
-)
+async_tcp_pool_hup( pool0, env, senv )  = 
+    let 
+        var pool : [a:vtype] async_tcp_pool_impl(a)
+          = reveal( pool0 )
+        val () = arrayptr_set_at<pollfd>( pool.fds, pool.fdcurr, pollfd_empty() )
+        val () = pool.compress := true
+        val () = pool0 := conceal( pool ) 
+    in 
+      sockenv$setdisposed<senv>(senv);
+      println!("HUP");
+    end
 
 implement {env}{senv}
-async_tcp_pool_error( pool, env, senv ) = (
-    sockenv$setdisposed<senv>(senv);
-    println!("ERR");
-)
+async_tcp_pool_error( pool0, env, senv ) = 
+    let 
+        var pool : [a:vtype] async_tcp_pool_impl(a)
+          = reveal( pool0 )
+        val () = arrayptr_set_at<pollfd>( pool.fds, pool.fdcurr, pollfd_empty() )
+        val () = pool.compress := true
+        val () = pool0 := conceal( pool ) 
+    in 
+      sockenv$setdisposed<senv>(senv);
+      println!("ERR");
+    end
+
 
 implement  {env}{sockenv}
 async_tcp_pool_run( pool, env )  
@@ -306,7 +321,7 @@ async_tcp_pool_run( pool, env )
              ) 
 
              prval () = $UNSAFE.cast2void( senv )
-             val () = pool := reveal(pool0)
+             val () = ptr_set<async_tcp_pool_impl(sockenv)>( view@pool | addr@pool,  reveal(pool0) )
            in  
               loop_evts{n,m-1}(pool, nfds - 1, env) where {
                 prval () = __assert( pool ) where {

@@ -1,5 +1,5 @@
 
-#define ASYNCNET_EPOLL
+#define ASYNCNET_POLL
 #include "share/atspre_staload.hats"
 #include "./../mylibies_link.hats"
 staload "libats/libc/SATS/sys/socket.sats"
@@ -81,7 +81,8 @@ sockenv$isdisposed<client_state>( x ) = (
 ) where {
     val CLIENT(info) = x 
   } 
- 
+
+(* 
 implement (env:vt@ype+)
 async_tcp_pool_error<env><client_state>( pool, env, senv ) = (
   ) where {
@@ -92,7 +93,7 @@ async_tcp_pool_error<env><client_state>( pool, env, senv ) = (
       prval () = fold@senv
       val () =sockenv$setdisposed<client_state>(senv);
     }
-
+*)
 macdef SOMAXCONN = $extval(intGt(0), "SOMAXCONN")
 implement main0 () = println!("Hello [test03]")
   where {
@@ -132,7 +133,7 @@ implement main0 () = println!("Hello [test03]")
                   , reqs_served = 0
                 })
 
-              val () = assertloc( async_tcp_pool_add{client_state}( p, lfd , EPOLLIN, linfo) )
+              val () = assertloc( async_tcp_pool_add{client_state}( p, lfd , POLLIN, linfo) )
               prval () = opt_unnone( linfo )
               
               implement
@@ -152,7 +153,7 @@ implement main0 () = println!("Hello [test03]")
                               , parse_status = psnil
                               , reqs_served = 0
                             })
-                          val () = assertloc( async_tcp_pool_add{client_state}( pool, cfd , EPOLLIN, cinfo) )
+                          val () = assertloc( async_tcp_pool_add{client_state}( pool, cfd , POLLIN, cinfo) )
                           prval () = opt_unnone( cinfo )
                           prval () = $UNSAFE.cast2void( cfd )
                         } 
@@ -227,7 +228,7 @@ implement main0 () = println!("Hello [test03]")
                             val () = info.status := Write()
                             val sock = $UNSAFE.castvwtp1{socketfd1(conn)}(info.sock)
                             prval () = fold@env 
-                            val () = async_tcp_pool_mod_exn( pool, sock, EPOLLOUT, env)
+                            val () = async_tcp_pool_mod_exn( pool, sock, POLLOUT, env)
                             prval () = $UNSAFE.cast2void( sock )
                          }
                        | close_sock() => {
@@ -248,13 +249,13 @@ implement main0 () = println!("Hello [test03]")
                       val sock = $UNSAFE.castvwtp1{socketfd1(conn)}(info.sock)
                       val () = info.status := Read()
                       prval () = fold@env
-                      val () = async_tcp_pool_mod_exn( pool, sock, EPOLLIN, env)
+                      val () = async_tcp_pool_mod_exn( pool, sock, POLLIN, env)
                       prval () = $UNSAFE.cast2void( sock ) 
                      in  
                     end
                 | Dispose() => () where {
                      // val () = print_current_time()
-                     // val () = println!(" Dispose")
+                      val () = println!(" Dispose")
 
                        prval () = fold@env }
 
