@@ -6,9 +6,6 @@ staload "libats/libc/SATS/netinet/in.sats"
 staload "libats/libc/SATS/unistd.sats"
 staload "libats/libc/SATS/stdio.sats"
 staload "libats/libc/SATS/errno.sats"
-staload "libats/SATS/athread.sats"
-staload _ = "libats/DATS/athread.dats"
-staload _ = "libats/DATS/athread_posix.dats"
 
 staload "./../SATS/socketfd.sats"
 staload "./../SATS/epoll.sats"
@@ -18,13 +15,9 @@ staload "./../SATS/async_tcp_pool.sats"
 (** FIXME: Make threading optional **)
 (** FIXME: Make sure env is handled safely when threading is enabled **)
 
-(** FIXME: This should only work in a single-threaded impl **)
-
 vtypedef pool_impl(a:vtype) = @{
      efd = epollfd
    , maxevents = sizeGt(0)
-   , threads   = sizeGt(0)
-  (** FIXMME: Each thread needs a variant of this **)
    , clients   = List0_vt(a) 
   }
 
@@ -37,7 +30,6 @@ in end
 absimpl
 async_tcp_params = @{
     maxevents = sizeGt(0)
-  , threads   = sizeGt(0)
   }
 
 absimpl
@@ -56,7 +48,6 @@ async_tcp_pool_create( pool, params ) =
               var pool0 : pool_impl(a) = (@{
                     efd = efd
                   , maxevents = params.maxevents
-                  , threads   = params.threads
                   , clients   = list_vt_nil()
                 } : pool_impl(a))
 
@@ -272,60 +263,13 @@ async_tcp_pool_run( pool, env )
         in loop_epoll( pool,ebuf,ebsz, env )
         end
 
-      fun spawn_threads{n:nat} .<n>. (
-            pool: &async_tcp_pool(sockenv)
-          , env: &env >> _ 
-          , n_threads : size_t n
-        ): void =
-        if n_threads > 0
-        then
-          let
-            (** FIXME: This cast is unsafe **)
-            val p = $UNSAFE.castvwtp1{async_tcp_pool(sockenv)}(pool)
-
-            (** FIXME: This cast is unsafe **)
-            val e = $UNSAFE.castvwtp1{env}(env)
-
-            val _ = athread_create_cloptr_exn<>(
-              llam() => 
-                let 
-                  var rpool : async_tcp_pool(sockenv) = p
-                  var renv : env = e   
-                  val maxevts = rpool.maxevents 
-                  val ebuf = arrayptr_make_elt<epoll_event>( maxevts, epoll_event_empty())
-                  val (pf | par ) = arrayptr_takeout_viewptr( ebuf ) 
-                  val () = (
-                    loop_epoll( rpool, !par, maxevts, renv );
-                    () where { prval () = arrayptr_addback( pf | ebuf ) };
-                    free( ebuf );
-                  )
-                  prval () = (
-                    $UNSAFE.cast2void(rpool);
-                    $UNSAFE.cast2void(renv);
-                  )
-                in 
-                end
-             );
-          in  
-            spawn_threads( pool, env, n_threads - 1)  
-          end
-        else ()
-
     val maxevts = pool.maxevents 
     val ebuf = arrayptr_make_elt<epoll_event>( maxevts, epoll_event_empty())
     val (pf | par ) = arrayptr_takeout_viewptr( ebuf )
-    val () = loop_epoll( pool, !par, maxevts, env ) 
-    val () = free(ebuf)
-        where { prval () = arrayptr_addback( pf | ebuf ) }
 
   in
-    (* 
-    in spawn_threads( pool, env, i2sz(1)(*pool.threads*));
-      while (true) (ignoret(sleep(1000)));
-    *)
-    (*
-    in 
-      loop_epoll( pool, env )
-    *)
-    end 
+    loop_epoll( pool, !par, maxevts, env ); 
+    free(ebuf)
+        where { prval () = arrayptr_addback( pf | ebuf ) };
+  end 
 

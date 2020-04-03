@@ -1,4 +1,5 @@
 
+#define ASYNCNET_EPOLL
 #include "share/atspre_staload.hats"
 #include "./../mylibies_link.hats"
 staload "libats/libc/SATS/sys/socket.sats"
@@ -99,8 +100,7 @@ implement main0 () = println!("Hello [test03]")
     var lfd : socketfd0?
 
     var evloop_params : async_tcp_params = (@{
-      , threads = i2sz(1)
-      , maxevents = i2sz(256)
+        maxevents = i2sz(256)
       } : async_tcp_params)
 
     var lsock_params : socketfd_setup_params = (@{
