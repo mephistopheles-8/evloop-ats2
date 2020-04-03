@@ -56,18 +56,6 @@ async_tcp_pool_create( pool, params ) =
           end
    end
 
-implement {a}
-async_tcp_pool_close_exn( pool ) =
-  let
-    val () =
-      ( kqueuefd_close_exn( pool.kfd ); 
-       list_vt_freelin<a>( pool.clients ) where {
-          implement list_vt_freelin$clear<a>( x ) 
-            = $effmask_all( sockenv$free<a>( x ) )
-        } 
-      )
-  in 
-  end
 
 fun {sockenv:vtype} 
   async_tcp_pool_clear_disposed

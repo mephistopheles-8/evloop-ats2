@@ -9,6 +9,7 @@ staload "libats/libc/SATS/fcntl.sats"
 
 
 absvt@ype socketfd(int,status) = int
+absvt@ype socketfdout(int,status) = int
 vtypedef socketfd0 = [fd:int][st:status] socketfd(fd,st)
 vtypedef socketfd1(st: status) = [fd:int] socketfd(fd,st)
 vtypedef socketfd(fd:int) = [st:status] socketfd(fd,st)
@@ -41,11 +42,21 @@ castfn socketfd_fildes
   ( socketfd(fd,s) ) 
   : [fd > 0] (socket_v(fd,s) | fildes(fd))
 
+castfn socketfd_fildes1
+  {fd:int}{s:status}
+  ( !socketfd(fd,s) >> socketfdout(fd,s) ) 
+  : [fd > 0] (fildes(fd))
 
 castfn fildes_socketfd
   {fd:int}{s:status}
   ( socket_v(fd,s) | fildes(fd) ) 
   : socketfd(fd,s)
+
+praxi fildes_socketfd1
+  {fd:int}{s:status}
+  ( !socketfdout(fd,s) >> socketfd(fd,s), fildes(fd)  ) 
+  : void
+
 
 absvt@ype sockopt(fd:int,st:status,b:bool) = int 
 absvt@ype sockalt(fd:int,st1:status,st2:status,b:bool) = int 

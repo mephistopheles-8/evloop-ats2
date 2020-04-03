@@ -1,5 +1,5 @@
 
-#define ASYNCNET_KQUEUE
+#define ASYNCNET_EPOLL
 #include "share/atspre_staload.hats"
 #include "./../mylibies_link.hats"
 staload "libats/libc/SATS/sys/socket.sats"

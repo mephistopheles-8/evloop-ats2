@@ -76,20 +76,20 @@ socketfd_create( sfd, af, st )
 implement {}
 socketfd_set_nonblocking( sfd )
   = let
-      val (psock | fd) = socketfd_fildes( sfd ) 
+      val fd = socketfd_fildes1( sfd ) 
       val flags = fcntl_getfl(fd)
       val s = fcntl_setfl(fd, flags lor O_NONBLOCK )  
-      val () = sfd := fildes_socketfd( psock | fd )
+      prval () = fildes_socketfd1( sfd, fd)
     in s > ~1
     end
 
 implement {}
 socketfd_set_cloexec( sfd )
   = let
-      val (psock | fd) = socketfd_fildes( sfd ) 
+      val fd = socketfd_fildes1( sfd ) 
       val flags = fcntl_getfl(fd)
       val s = fcntl_setfl(fd, flags lor FD_CLOEXEC )  
-      val () = sfd := fildes_socketfd( psock | fd )
+      prval () = fildes_socketfd1( sfd, fd)
     in s > ~1
     end
 
@@ -215,8 +215,6 @@ socketfd_create_bind_port(sfd,p)
                 { 
                   var n : int = 1 
                   val _ = assertloc( setsockopt( $UNSAFE.castvwtp1{int}(sfd), SOL_SOCKET, SO_REUSEADDR, n, sizeof<int> ) > ~1 )
-                  //var n : int = 1 
-                  //val _ = assertloc( setsockopt( $UNSAFE.castvwtp1{int}(sfd), SOL_SOCKET, SO_REUSEPORT, n, sizeof<int> ) > ~1 )
                 }
             
           val () = 

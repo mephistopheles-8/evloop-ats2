@@ -101,7 +101,7 @@ async_tcp_pool_add{socketenv}{fd}( pool, cfd, evts, senv ) =
       (** Ignore EINTR **)
       fun loop{fd:int}{st:status}
         ( pool: &async_tcp_pool(socketenv)
-        , cfd: &socketfd(fd,st)
+        , cfd: !socketfd(fd,st)
         , evts: async_tcp_event
         , senv: &socketenv >> opt(socketenv,~b) 
       ): #[b:bool] bool b =
