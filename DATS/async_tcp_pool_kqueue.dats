@@ -253,6 +253,7 @@ async_tcp_pool_run( pool, env )
       , env  : &env >> _
       ) : void = 
         let
+          val () = async_tcp_pool_clear_disposed<sockenv>(pool)
           val n = kevent(pool.kfd, the_null_ptr, 0,ebuf, sz2i(ebsz), the_null_ptr)
           
           val () = (
