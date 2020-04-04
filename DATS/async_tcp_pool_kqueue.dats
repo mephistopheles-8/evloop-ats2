@@ -143,8 +143,8 @@ async_tcp_pool_del{fd}( pool, cfd ) =
 (** FIXME: this works, but is ugly **)
 implement {}
 async_tcp_pool_mod{sockenv}{fd}( pool, cfd, evts, senv ) =
-  if async_tcp_pool_del( pool, cfd )
-  then ( 
+(*  if async_tcp_pool_del( pool, cfd )
+  then*) ( 
        if async_tcp_pool_add( pool, cfd, evts, senv )
        then true where {
             prval () = opt_unnone( senv )
@@ -156,7 +156,7 @@ async_tcp_pool_mod{sockenv}{fd}( pool, cfd, evts, senv ) =
     ) where {
       var senv = $UNSAFE.castvwtp1{sockenv}(senv)
     }
-  else false
+  //else false
 
 implement {}
 async_tcp_pool_add_exn{fd}( pool, cfd, evts, senv ) =
