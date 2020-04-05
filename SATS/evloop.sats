@@ -7,8 +7,6 @@ absvt@ype evloop(a:vt@ype+)
 vtypedef  evloop = [a:vt@ype+] evloop(a)
 abst@ype evloop_params
 abst@ype evloop_event
-absvtype sockenv(a:vt@ype+) = ptr
-vtypedef sockenv = [a:vt@ype+] sockenv(a)
 
 datatype sock_polling_state = 
   | PolledR
@@ -23,8 +21,15 @@ datatype sockevt =
   | EvtRW
   | EvtOther
 
+absvt@ype sockenv_evloop_data
+
+datavtype sockenv(env:vt@ype+) =
+  | CLIENT of (sockenv_evloop_data, env)
+
+vtypedef sockenv = [a:vt@ype+] sockenv(a)
+
 fun {env:vt@ype+}
-  evloop$process( &evloop, sockevt , !sockenv(env) ) : void
+  evloop$process( &evloop(env), sockevt , !sockenv(env) ) : void
 
 fun {}
   evloop_events_mod{a:vt@ype+}( &evloop(a), sockevt, !sockenv(a) ) : bool 
@@ -43,6 +48,13 @@ fun {env:vt@ype+}
 
 fun {env:vt@ype+}
   sockenv_decompose( sockenv(env) ) : @(socketfd0,env)
+
+fun {env:vt@ype+}{senv:vt@ype+}
+  sockenv_with$fwork( &evloop(senv), !socketfd0, &senv >> _, &env >> _ ) : void
+
+fun {env:vt@ype+}{senv:vt@ype+}
+  sockenv_with(&evloop(senv), !sockenv(env), &env >> _ ) : void
+
 
 (** internal **)
 

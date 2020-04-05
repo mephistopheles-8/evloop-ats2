@@ -20,14 +20,11 @@ vtypedef poll_client_info = @{
   , socket_index = size_t
   }
 
-datavtype poll_client(env:vt@ype+) =
-  | CLIENT of (poll_client_info, env)
-
-absimpl sockenv(env) = poll_client(env)
+absimpl sockenv_evloop_data = poll_client_info
 
 vtypedef evloop_impl(a:vt@ype+,n:int) = @{
    maxconn   = size_t n
- , clients   = List0_vt(poll_client(a)) 
+ , clients   = List0_vt(sockenv(a)) 
 
  , fds       = arrayptr(pollfd,n)
  , data      = arrayptr(ptr,n)
@@ -80,32 +77,33 @@ evloop_create( pool, params ) =
     in true 
    end
 
-fun {sockenv:vt@ype+} 
+fun {senv:vt@ype+} 
   evloop_clear_disposed
-  ( pool0: &evloop(sockenv) )
+  ( pool0: &evloop(senv) )
   : void =  {
-          var pool : evloop_impl(sockenv)
-            = reveal( pool0 )
-          val () = 
-            pool.clients := list_vt_filterlin<poll_client(sockenv)>(  pool.clients )
-          val () = pool0 := conceal( pool ) 
-
-          implement list_vt_filterlin$clear<poll_client(sockenv)>( x ) 
+          implement list_vt_filterlin$clear<sockenv(senv)>( x ) 
             = {
               val ~CLIENT(info,env) = x
               val () = 
                 $effmask_all( 
                      socketfd_close_exn(info.sock);
-                     sockenv$free<sockenv>( env ) 
+                     sockenv$free<senv>( env ) 
                   ) 
             } 
-          implement list_vt_filterlin$pred<poll_client(sockenv)>( x ) = ( 
+          implement list_vt_filterlin$pred<sockenv(senv)>( x ) = ( 
              case+ info.polling_state of
               | Disposed() => false
               | _ => true
               ) where {
                 val CLIENT(info,_) = x
               }
+
+          var pool : evloop_impl(senv)
+            = reveal( pool0 )
+          val () = 
+            pool.clients := list_vt_filterlin<sockenv(senv)>(  pool.clients )
+          val () = pool0 := conceal( pool ) 
+
       }
   
 implement {a}
@@ -115,9 +113,9 @@ evloop_close_exn( pool0 ) =
     val () =
       ( free(pool.fds);
         free(pool.data); 
-        list_vt_freelin<poll_client(a)>( pool.clients ) where {
+        list_vt_freelin<sockenv(a)>( pool.clients ) where {
           implement (a:vt@ype+) 
-            list_vt_freelin$clear<poll_client(a)>( x ) 
+            list_vt_freelin$clear<sockenv(a)>( x ) 
             = $effmask_all( 
                 socketfd_close_exn(info.sock); 
                 sockenv$free<a>( env ) 
@@ -229,7 +227,7 @@ evloop_run( pool, env )
 
             var pool0 : evloop(senv)
               = conceal( pool )
-            val senv = $UNSAFE.castvwtp1{poll_client(senv)}(p)
+            val senv = $UNSAFE.castvwtp1{sockenv(senv)}(p)
             val () = ( 
               ifcase
               | poll_status_has( status, POLLHUP ) => 

@@ -80,7 +80,7 @@ macdef POLLIN = $extval(poll_status,"POLLIN")
 macdef POLLPRI = $extval(poll_status,"POLLPRI")
 macdef POLLOUT = $extval(poll_status,"POLLOUT")
 
-fun {} poll_status_lor ( poll_status, poll_status ) :<> poll_status
+fun poll_status_lor ( poll_status, poll_status ) :<> poll_status
 overload lor with poll_status_lor
 
 /* These values are defined in XPG4.2.  */

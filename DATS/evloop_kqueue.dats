@@ -20,16 +20,13 @@ vtypedef kqueue_client_info = @{
   , polling_state = sock_polling_state
   }
 
-datavtype kqueue_client(env:vt@ype+) =
-  | CLIENT of (kqueue_client_info, env)
-
-absimpl sockenv(a) = kqueue_client(a)
+absimpl sockenv_evloop_data = kqueue_client_info
 
 absimpl
 evloop(a) = @{
    kfd = kqueuefd
  , maxevents = sizeGt(0)
- , clients   = List0_vt(kqueue_client(a)) 
+ , clients   = List0_vt(sockenv(a)) 
 }
 
 absimpl
@@ -65,21 +62,21 @@ evloop_create( pool, params ) =
           end
    end
 
-fun {sockenv:vt@ype+} 
+fun {senv:vt@ype+} 
   evloop_clear_disposed
-  ( pool: &evloop(sockenv) )
-  : void = pool.clients := list_vt_filterlin<kqueue_client(sockenv)>(  pool.clients )
+  ( pool: &evloop(senv) )
+  : void = pool.clients := list_vt_filterlin<sockenv(senv)>(  pool.clients )
       where {
-          implement list_vt_filterlin$clear<kqueue_client(sockenv)>( x ) 
+          implement list_vt_filterlin$clear<sockenv(senv)>( x ) 
             = {
               val ~CLIENT(info,env) = x
               val () = 
                 $effmask_all( 
                      socketfd_close_exn(info.sock);
-                     sockenv$free<sockenv>( env ) 
+                     sockenv$free<senv>( env ) 
                   ) 
             } 
-          implement list_vt_filterlin$pred<kqueue_client(sockenv)>( x ) = ( 
+          implement list_vt_filterlin$pred<sockenv(senv)>( x ) = ( 
              case+ info.polling_state of
               | Disposed() => false
               | _ => true
@@ -93,9 +90,9 @@ evloop_close_exn( pool ) =
   let
     val () =
       ( kqueuefd_close_exn( pool.kfd ); 
-       list_vt_freelin<kqueue_client(a)>( pool.clients ) where {
+       list_vt_freelin<sockenv(a)>( pool.clients ) where {
           implement (a:vt@ype+) 
-            list_vt_freelin$clear<kqueue_client(a)>( x ) 
+            list_vt_freelin$clear<sockenv(a)>( x ) 
             = $effmask_all( 
                 socketfd_close_exn(info.sock); 
                 sockenv$free<a>( env ) 
@@ -122,13 +119,13 @@ evloop_error( pool, env, senv ) = (
     println!("ERR");
 )
 
-implement  {env}{sockenv}
+implement  {env}{senv}
 evloop_run( pool, env )  
   = let
       fun loop_evts
         {n,m:nat | m <= n}
       (
-        pool : &evloop(sockenv)
+        pool : &evloop(senv)
       , ebuf : &(@[kevent][n])
       , nevts : size_t m
       , env  : &env >> _
@@ -140,22 +137,22 @@ evloop_run( pool, env )
             val fd = $UNSAFE.cast{int}(evt.ident)
             val flags = evt.flags
             
-            var senv = 
-              $UNSAFE.castvwtp1{kqueue_client(sockenv)}( evt.udata )
+            var senv0 = 
+              $UNSAFE.castvwtp1{sockenv(senv)}( evt.udata )
 
             val () =
               ifcase
                | kevent_status_has(flags2status(flags), EV_EOF ) => { 
-                    val () =  evloop_hup<env><sockenv>(pool,  env, senv )
-                    prval () = $UNSAFE.cast2void(senv)
+                    val () =  evloop_hup<env><senv>(pool,  env, senv0 )
+                    prval () = $UNSAFE.cast2void(senv0)
                   }
                | kevent_status_has(flags2status(flags), EV_ERROR ) => { 
-                    val () = evloop_error<env><sockenv>(pool, env, senv )
-                    prval () = $UNSAFE.cast2void(senv)
+                    val () = evloop_error<env><senv>(pool, env, senv0 )
+                    prval () = $UNSAFE.cast2void(senv0)
                   }
                | _ => {
-                  val () = evloop_process<sockenv>(pool, $UNSAFE.cast{evloop_event}(flags), senv ) 
-                  prval () = $UNSAFE.cast2void(senv)
+                  val () = evloop_process<senv>(pool, $UNSAFE.cast{evloop_event}(flags), senv0 ) 
+                  prval () = $UNSAFE.cast2void(senv0)
                 }
 
              in loop_evts(pool,ebuf,nevts-1,env)
@@ -163,13 +160,13 @@ evloop_run( pool, env )
           else ()
  
       and loop_kqueue{n,m:nat | m <= n}(
-        pool : &evloop(sockenv)
+        pool : &evloop(senv)
       , ebuf : &(@[kevent][n])
       , ebsz : size_t m
       , env  : &env >> _
       ) : void = 
         let
-          val () = evloop_clear_disposed<sockenv>(pool)
+          val () = evloop_clear_disposed<senv>(pool)
           val n = kevent(pool.kfd, the_null_ptr, 0,ebuf, sz2i(ebsz), the_null_ptr)
           
           val () = (
