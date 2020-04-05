@@ -7,7 +7,39 @@ absvt@ype async_tcp_pool(a:vtype)
 vtypedef  async_tcp_pool = [a:vtype] async_tcp_pool(a)
 abst@ype async_tcp_params
 abst@ype async_tcp_event
+absvtype sockenv(a:vt@ype+) = ptr
+vtypedef sockenv = [a:vt@ype+] sockenv(a)
 
+datatype sock_polling_state = 
+  | PolledR
+  | PolledW
+  | PolledRW
+  | NotPolled
+  | Disposed
+
+datatype sockevt = 
+  | EvtR
+  | EvtW
+  | EvtRW
+  | EvtOther
+
+fun {env:vt@ype+}
+  evloop$process( &async_tcp_pool, sockevt , !sockenv(env) ) : void
+
+fun {}
+  evloop_events_mod{a:vtype}( &async_tcp_pool(a), sockevt, !sockenv ) : bool 
+
+fun {}
+  evloop_events_del{a:vtype}( &async_tcp_pool(a), !sockenv ) : bool 
+
+fun {}
+  evloop_events_add{a:vtype}( &async_tcp_pool(a), sockevt, !sockenv >> opt(sockenv,~b) ) : #[b:bool] bool b 
+
+fun {}
+  evloop_events_dispose( &async_tcp_pool, !sockenv ) : bool
+ 
+fun {env:vt@ype+}
+  sockenv_create( socketfd0, env ) : sockenv(env)
 
 (** internal **)
 

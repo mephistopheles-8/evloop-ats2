@@ -352,3 +352,24 @@ async_tcp_pool_run( pool, env )
       loop_poll( pool, env )
     end 
 
+vtypedef poll_client_info = @{
+    sock = socketfd0
+  , polling_state = sock_polling_state
+  , socket_index = size_t
+  }
+
+datavtype poll_client(env:vt@ype+) =
+  | CLIENT of (poll_client_info, env)
+
+
+implement (env:vt@ype+)
+async_tcp_pool_process<poll_client(env)>( pool, evts, env ) 
+  = let
+      val evt : sockevt = ( 
+         ifcase
+          | poll_status_has(evts,POLLIN) && poll_status_has(evts,POLLOUT) => EvtRW() 
+          | poll_status_has(evts,POLLIN) => EvtR()
+          | poll_status_has(evts,POLLOUT) => EvtW()
+          | _ => EvtOther()  
+      )
+    in end

@@ -271,3 +271,169 @@ async_tcp_pool_run( pool, env )
         where { prval () = arrayptr_addback( pf | ebuf ) };
   end 
 
+
+vtypedef epoll_client_info = @{
+    sock = socketfd0
+  , polling_state = sock_polling_state
+  }
+
+datavtype epoll_client(env:vt@ype+) =
+  | CLIENT of (epoll_client_info, env)
+
+absimpl sockenv(a) = epoll_client(a)
+
+implement (env:vt@ype+)
+async_tcp_pool_process<epoll_client(env)>( pool, evts, env ) 
+  = let
+      val evt : sockevt = ( 
+         ifcase
+          | eek_has(evts,EPOLLIN) && eek_has(evts,EPOLLOUT) => EvtRW() 
+          | eek_has(evts,EPOLLIN) => EvtR()
+          | eek_has(evts,EPOLLOUT) => EvtW()
+          | _ => EvtOther()  
+      )
+      val () = evloop$process<env>( pool, evt, env )
+    in end
+
+fun {} polling_state_upd( ev: sockevt, ps: sock_polling_state ) : sock_polling_state 
+  = case+ ev of
+    | EvtR() => (
+        case+ ps of
+        | PolledW() => PolledRW()
+        | NotPolled() => PolledR()
+        | _ => ps
+      ) 
+    | EvtW() => (
+        case+ ps of
+        | PolledR() => PolledRW()
+        | NotPolled() => PolledW()
+        | _ => ps
+      ) 
+    | EvtRW() => (
+        case+ ps of
+        | PolledR() => PolledRW()
+        | PolledW() => PolledRW()
+        | NotPolled() => PolledRW()
+        | _ => ps
+      )
+    | _ => ps 
+   
+
+macdef epoll_no_evt  = $extval(epoll_event_kind,"0")
+
+implement {}
+evloop_events_mod( pool, evt, env ) 
+  = let
+      val @CLIENT(info,_) = env
+      val ep : epoll_event_kind = (
+        case- evt of 
+        | EvtR() => EPOLLIN
+        | EvtW() => EPOLLOUT
+        | EvtRW() => EPOLLIN lor EPOLLOUT
+      )
+      val b = loop(pool, info.sock, ep, $UNSAFE.castvwtp1{ptr}(env)) where {
+        (** ignore EINTR **) 
+        fun loop{fd:int}{st:status} 
+        ( pool: &async_tcp_pool, cfd: !socketfd(fd,st), evts : epoll_event_kind,  senv : ptr )
+        : bool =
+           let
+              var evt = epoll_event_empty()
+              val () = evt.data.ptr := senv
+              val () = evt.events := evts
+              val err =  epoll_ctl( pool.efd, EPOLL_CTL_MOD, cfd, evt )
+            in ifcase 
+                | err = 0 => true
+                | the_errno_test(EINTR)  => loop( pool, cfd, evts, senv )
+                | _ => false 
+           end
+      }
+      val () = if b then {
+            val ps = info.polling_state
+            val () = info.polling_state := polling_state_upd(evt,ps)
+        }
+      prval () = fold@env
+    in b
+    end
+
+implement {}
+evloop_events_add( pool, evt, env ) 
+  = let
+      val @CLIENT(info,_) = env
+      val ep : epoll_event_kind = (
+        case- evt of 
+        | EvtR() => EPOLLIN
+        | EvtW() => EPOLLOUT
+        | EvtRW() => EPOLLIN lor EPOLLOUT
+      )
+      val b = loop(pool, info.sock, ep, $UNSAFE.castvwtp1{ptr}(env)) where {
+        (** ignore EINTR **) 
+        fun loop{fd:int}{st:status} 
+        ( pool: &async_tcp_pool, cfd: !socketfd(fd,st), evts : epoll_event_kind,  senv : ptr )
+        : bool =
+           let
+              var evt = epoll_event_empty()
+              val () = evt.data.ptr := senv
+              val () = evt.events := evts
+              val err =  epoll_ctl( pool.efd, EPOLL_CTL_ADD, cfd, evt )
+            in ifcase 
+                | err = 0 => true
+                | the_errno_test(EINTR)  => loop( pool, cfd, evts, senv )
+                | _ => false 
+           end
+      }
+      val () = if b then {
+            val ps = info.polling_state
+            val () = info.polling_state := polling_state_upd(evt,ps)
+        }
+      prval () = fold@env
+
+      extern praxi to_opt{b:bool}( !sockenv >> opt(sockenv,b) ) : void
+
+    in if b
+       then true where {
+          prval () = to_opt{false}( env )  
+        }
+       else false where {
+          prval () = to_opt{true}( env )  
+        }
+    end
+
+implement {}
+evloop_events_del( pool, env ) 
+  = let
+      val @CLIENT(info,_) = env
+      
+      val b = loop( pool, info.sock ) where {
+        (** ignore EINTR **) 
+        fun loop{fd:int}{st:status} 
+        ( pool: &async_tcp_pool, cfd: !socketfd(fd,st) )
+        : bool =
+           let
+              var evt = epoll_event_empty()
+              val err =  epoll_ctl( pool.efd, EPOLL_CTL_DEL, cfd, evt )
+            in ifcase 
+                | err = 0 => true
+                | the_errno_test(EINTR)  => loop( pool, cfd )
+                | _ => false 
+           end
+      }
+      val () = if b then {
+            val () = info.polling_state := NotPolled()
+        }
+      prval () = fold@env
+    in b
+    end
+
+implement {}
+evloop_events_dispose( pool, env ) 
+  = let
+      val b = evloop_events_del( pool, env )
+
+      val @CLIENT(info,_) = env
+
+      val () = if b then {
+            val () = info.polling_state := Disposed()
+        }
+      prval () = fold@env
+    in b
+    end

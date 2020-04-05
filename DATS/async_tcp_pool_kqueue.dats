@@ -260,3 +260,167 @@ async_tcp_pool_run( pool, env )
       free( ebuf )  where { prval () = arrayptr_addback( pf | ebuf ) };
     end 
 
+vtypedef kqueue_client_info = @{
+    sock = socketfd0
+  , polling_state = sock_polling_state
+  }
+
+datavtype kqueue_client(env:vt@ype+) =
+  | CLIENT of (kqueue_client_info, env)
+
+absimpl sockenv(a) = kqueue_client(a)
+
+implement (env:vt@ype+)
+async_tcp_pool_process<kqueue_client(env)>( pool, evts, env ) 
+  = let
+      val evt : sockevt = ( 
+         ifcase
+          | evfilt_has(evts,EVFILT_READ) && evfilt_has(evts,EVFILT_WRITE) => EvtRW() 
+          | evfilt_has(evts,EVFILT_READ) => EvtR()
+          | evfilt_has(evts,EVFILT_WRITE) => EvtW()
+          | _ => EvtOther()  
+      )
+      val () = evloop$process<env>( pool, evt, env )
+    in end
+
+implement {}
+evloop_events_mod( pool, evt, env ) 
+  = let
+      (** ignore EINTR **) 
+      fun loop{fd:int}{st:status}{a:vtype} 
+      ( pool: &async_tcp_pool(a), evt : evfilt, action: kevent_action, cfd: !socketfd(fd,st) )
+      : bool =
+         let
+            var empt = kevent_empty()
+            val () = EV_SET(empt, cfd, evt , action, kevent_fflag_empty, kevent_data_empty, the_null_ptr  )
+            val err =  kevent( pool.kfd, empt, 1, the_null_ptr, 0, the_null_ptr )
+          in ifcase 
+              | err = 0 => true
+              | the_errno_test(EINTR) => loop( pool, evt, action, cfd )
+              | _ => false 
+         end 
+
+      val @CLIENT(info,_) = env
+
+      val b : bool = (
+        case+ info.polling_state of
+        | PolledR() => b where { 
+             val b = loop( pool, EVFILT_READ, EV_DELETE, info.sock )
+             val () = if b then info.polling_state := NotPolled()
+          }
+        | PolledW() => b where { 
+            val b = loop( pool, EVFILT_WRITE, EV_DELETE, info.sock )
+            val () = if b then info.polling_state := NotPolled()
+
+          }
+        | PolledRW() => b0 && b1 where {
+             val b0 = loop( pool, EVFILT_READ, EV_DELETE, info.sock )
+             val b1 = loop( pool, EVFILT_WRITE, EV_DELETE, info.sock )
+             val () = (
+                ifcase 
+                 | b0 && b1 => info.polling_state := NotPolled() 
+                 | b0 && ~b1 => info.polling_state := PolledW()
+                 | ~b0 && b1 => info.polling_state := PolledR()
+                 | _ => info.polling_state := PolledRW()
+              )
+          } 
+        | NotPolled() => true
+        | _ => false 
+      ) : bool
+
+      val b = (
+        if b 
+        then (
+          case+ evt of
+          | EvtR() => (
+             if loop( pool, EVFILT_READ, EV_ADD, info.sock )
+             then ( info.polling_state := PolledR(); true)
+             else false
+            ) 
+          | EvtW() => (
+             if loop( pool, EVFILT_WRITE, EV_ADD, info.sock )
+             then ( info.polling_state := PolledW(); true)
+             else false
+            ) 
+          | EvtRW() => (
+             if b0 && b1
+             then ( info.polling_state := PolledRW(); true)
+             else false
+           ) where {
+             val b0 = loop( pool, EVFILT_READ, EV_ADD, info.sock )
+             val b1 = loop( pool, EVFILT_WRITE, EV_ADD, info.sock )
+             val () = (
+                ifcase 
+                 | b0 && b1 => info.polling_state := PolledRW() 
+                 | b0 && ~b1 => info.polling_state := PolledR()
+                 | ~b0 && b1 => info.polling_state := PolledW()
+                 | _ => info.polling_state := NotPolled()
+              )
+            } 
+          | _ => false 
+        ) else false
+      )
+      prval () = fold@env
+    in b
+    end
+ 
+implement {}
+evloop_events_del( pool, env ) 
+  = let
+      (** ignore EINTR **) 
+      fun loop{fd:int}{st:status}{a:vtype} 
+      ( pool: &async_tcp_pool(a), evt : evfilt, action: kevent_action, cfd: !socketfd(fd,st) )
+      : bool =
+         let
+            var empt = kevent_empty()
+            val () = EV_SET(empt, cfd, evt , action, kevent_fflag_empty, kevent_data_empty, the_null_ptr  )
+            val err =  kevent( pool.kfd, empt, 1, the_null_ptr, 0, the_null_ptr )
+          in ifcase 
+              | err = 0 => true
+              | the_errno_test(EINTR) => loop( pool, evt, action, cfd )
+              | _ => false 
+         end 
+
+      val @CLIENT(info,_) = env
+
+      val b : bool = (
+        case+ info.polling_state of
+        | PolledR() => 
+             loop( pool, EVFILT_READ, EV_DELETE, info.sock )
+        | PolledW() =>  
+             loop( pool, EVFILT_WRITE, EV_DELETE, info.sock )
+        | PolledRW() => b0 && b1 where {
+             val b0 = loop( pool, EVFILT_READ, EV_DELETE, info.sock )
+             val b1 = loop( pool, EVFILT_WRITE, EV_DELETE, info.sock )
+             val () = (
+                ifcase 
+                 | b0 && b1 => info.polling_state := NotPolled() 
+                 | b0 && ~b1 => info.polling_state := PolledW()
+                 | ~b0 && b1 => info.polling_state := PolledR()
+                 | _ => info.polling_state := PolledRW()
+              )
+          } 
+        | NotPolled() => true
+        | _ => false 
+      ) : bool
+      val () = if b then {
+        val () = info.polling_state := NotPolled()
+      }
+      prval () = fold@env
+    in b
+    end
+
+
+implement {}
+evloop_events_dispose( pool, env ) 
+  = let
+      val b = evloop_events_del( pool, env )
+
+      val @CLIENT(info,_) = env
+
+      val () = if b then {
+            val () = info.polling_state := Disposed()
+        }
+      prval () = fold@env
+    in b
+    end
