@@ -38,6 +38,9 @@ pollfd_status( pfd ) =
  $UNSAFE.cast{poll_status}(pfd.revents)
 
 
+implement {}
+poll_status_lor( ps0, ps1) =
+  ($UNSAFE.cast{poll_status}($UNSAFE.cast{uint}(ps0) lor $UNSAFE.cast{uint}(ps1)))
 
 
 
