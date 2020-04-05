@@ -260,7 +260,7 @@ evloop_events_add{a}( pool, evt, env )
               : bool =
                  let
                     var empt = kevent_empty()
-                    val () = EV_SET(empt, cfd, evts, EV_ADD, kevent_fflag_empty, kevent_data_empty, the_null_ptr  )
+                    val () = EV_SET(empt, cfd, evts, EV_ADD, kevent_fflag_empty, kevent_data_empty, senv )
                     val err =  kevent( pool.kfd, empt, 1, the_null_ptr, 0, the_null_ptr )
                   in ifcase 
                       | err = 0 => true
@@ -297,15 +297,15 @@ evloop_events_mod( pool, evt, env )
   = let
       (** ignore EINTR **) 
       fun loop{fd:int}{st:status}{a:vt@ype+} 
-      ( pool: &evloop(a), evt : evfilt, action: kevent_action, cfd: !socketfd(fd,st) )
+      ( pool: &evloop(a), evt : evfilt, action: kevent_action, cfd: !socketfd(fd,st), senv : ptr )
       : bool =
          let
             var empt = kevent_empty()
-            val () = EV_SET(empt, cfd, evt , action, kevent_fflag_empty, kevent_data_empty, the_null_ptr  )
+            val () = EV_SET(empt, cfd, evt , action, kevent_fflag_empty, kevent_data_empty, senv )
             val err =  kevent( pool.kfd, empt, 1, the_null_ptr, 0, the_null_ptr )
           in ifcase 
               | err = 0 => true
-              | the_errno_test(EINTR) => loop( pool, evt, action, cfd )
+              | the_errno_test(EINTR) => loop( pool, evt, action, cfd, senv )
               | _ => false 
          end 
 
@@ -314,17 +314,17 @@ evloop_events_mod( pool, evt, env )
       val b : bool = (
         case+ info.polling_state of
         | PolledR() => b where { 
-             val b = loop( pool, EVFILT_READ, EV_DELETE, info.sock )
+             val b = loop( pool, EVFILT_READ, EV_DELETE, info.sock, the_null_ptr )
              val () = if b then info.polling_state := NotPolled()
           }
         | PolledW() => b where { 
-            val b = loop( pool, EVFILT_WRITE, EV_DELETE, info.sock )
+            val b = loop( pool, EVFILT_WRITE, EV_DELETE, info.sock, the_null_ptr )
             val () = if b then info.polling_state := NotPolled()
 
           }
         | PolledRW() => b0 && b1 where {
-             val b0 = loop( pool, EVFILT_READ, EV_DELETE, info.sock )
-             val b1 = loop( pool, EVFILT_WRITE, EV_DELETE, info.sock )
+             val b0 = loop( pool, EVFILT_READ, EV_DELETE, info.sock, the_null_ptr )
+             val b1 = loop( pool, EVFILT_WRITE, EV_DELETE, info.sock, the_null_ptr )
              val () = (
                 ifcase 
                  | b0 && b1 => info.polling_state := NotPolled() 
@@ -342,12 +342,12 @@ evloop_events_mod( pool, evt, env )
         then (
           case+ evt of
           | EvtR() => (
-             if loop( pool, EVFILT_READ, EV_ADD, info.sock )
+             if loop( pool, EVFILT_READ, EV_ADD, info.sock, senv0 )
              then ( info.polling_state := PolledR(); true)
              else false
             ) 
           | EvtW() => (
-             if loop( pool, EVFILT_WRITE, EV_ADD, info.sock )
+             if loop( pool, EVFILT_WRITE, EV_ADD, info.sock, senv0 )
              then ( info.polling_state := PolledW(); true)
              else false
             ) 
@@ -356,8 +356,8 @@ evloop_events_mod( pool, evt, env )
              then ( info.polling_state := PolledRW(); true)
              else false
            ) where {
-             val b0 = loop( pool, EVFILT_READ, EV_ADD, info.sock )
-             val b1 = loop( pool, EVFILT_WRITE, EV_ADD, info.sock )
+             val b0 = loop( pool, EVFILT_READ, EV_ADD, info.sock, senv0 )
+             val b1 = loop( pool, EVFILT_WRITE, EV_ADD, info.sock, senv0 )
              val () = (
                 ifcase 
                  | b0 && b1 => info.polling_state := PolledRW() 
@@ -367,8 +367,10 @@ evloop_events_mod( pool, evt, env )
               )
             } 
           | _ => false 
-        ) else false
-      )
+        ) where {
+          val senv0 = $UNSAFE.castvwtp1{ptr}(env)
+        } else false
+      ) 
       prval () = fold@env
     in b
     end
