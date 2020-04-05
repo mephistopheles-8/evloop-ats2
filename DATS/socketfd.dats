@@ -97,7 +97,7 @@ implement {}
 socketfd_set_nodelay( sfd ) 
   = st > ~1 where {
       var n : int = 1 
-      val st = setsockopt( $UNSAFE.castvwtp1{int}(sfd), IPPROTO_TCP, TCP_NODELAY, n, sizeof<int> ) 
+      val st = setsockopt( socketfd_value(sfd), IPPROTO_TCP, TCP_NODELAY, n, sizeof<int> ) 
   
   }
 
@@ -105,7 +105,7 @@ implement {}
 socketfd_get_error_code( sfd ) 
   = (if st > ~1 then n else st) where {
       var n : int = 0 
-      val st = setsockopt( $UNSAFE.castvwtp1{int}(sfd), SOL_SOCKET, SO_ERROR, n, sizeof<int> ) 
+      val st = setsockopt( socketfd_value(sfd), SOL_SOCKET, SO_ERROR, n, sizeof<int> ) 
   
   }
 
@@ -214,7 +214,7 @@ socketfd_create_bind_port(sfd,p)
             then 
                 { 
                   var n : int = 1 
-                  val _ = assertloc( setsockopt( $UNSAFE.castvwtp1{int}(sfd), SOL_SOCKET, SO_REUSEADDR, n, sizeof<int> ) > ~1 )
+                  val _ = assertloc( setsockopt( socketfd_value(sfd), SOL_SOCKET, SO_REUSEADDR, n, sizeof<int> ) > ~1 )
                 }
             
           val () = 
