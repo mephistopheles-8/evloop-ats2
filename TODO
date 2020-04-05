@@ -1,22 +1,7 @@
-- (Breaks comp) epoll_add1 now expects data
-- This would work.  We need to allow each client to have some user-defined state;
-  the "process" function is open-ended; it's up to the user to handle reading and 
-  writing for whatever protocol they are implementing based on the state.
-- All socket ops need to ignore EINTR 
-- The listen socket needs to be added to the loop; accepting could
-  occur with an onread
-- Depreciate "accept", but keep utilities
-
-- A better interface for adding sockets to the pool is needed.
-  The pool should set flags on its own (perhaps in an update step like in libh2o).
-  Needing to share the same variable (socket + info) kind of sucks.
-
-- Can't mod flags!!!
-
-
-register_read<servenv,sockenv>( sk, servenv )
-impl sock_onread<sockenv>( pool, events, sockenv ) =
-     if sockenv_is_listening( sockenv ) =>
-     else if sockenv_is_reading( sockenv ) =>
-          if sockenv_is_writing( sockenv ) =>
-
+- We need a predefined, interface-specific state for each socket 
+  to handle the following issues:
+    All backends require the socket to make modifications; otherwise:
+    a) epoll: to my knowledge, epoll is fine as-is
+    b) poll: we need the array index to make deletions
+    c) kevent: we need the current event state to make deletions
+    
