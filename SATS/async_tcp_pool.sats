@@ -60,7 +60,7 @@ fun {}
 (** user **)
 fun {senv:vtype} sockenv$free( senv ) :  void 
 fun {senv:vtype} sockenv$isdisposed( !senv ) : bool
-fun {senv:vtype} sockenv$setdisposed( !senv ) : void
+fun {senv:vtype} sockenv$setdisposed(&async_tcp_pool(senv), !senv ) : void
 
 fun {env:vt@ype+}{senv:vtype} 
   async_tcp_pool_error

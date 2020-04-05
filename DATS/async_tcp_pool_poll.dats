@@ -197,30 +197,16 @@ async_tcp_pool_mod_exn{sockenv}{fd}( pool, cfd, evts, senv ) =
   end
 
 implement {env}{senv}
-async_tcp_pool_hup( pool0, env, senv )  = 
-    let 
-        var pool : [a:vtype] async_tcp_pool_impl(a)
-          = reveal( pool0 )
-        val () = arrayptr_set_at<pollfd>( pool.fds, pool.fdcurr, pollfd_empty() )
-        val () = pool.compress := true
-        val () = pool0 := conceal( pool ) 
-    in 
-      sockenv$setdisposed<senv>(senv);
+async_tcp_pool_hup( pool0, env, senv )  = ( 
+      sockenv$setdisposed<senv>(pool0,senv);
       println!("HUP");
-    end
+    )
 
 implement {env}{senv}
-async_tcp_pool_error( pool0, env, senv ) = 
-    let 
-        var pool : [a:vtype] async_tcp_pool_impl(a)
-          = reveal( pool0 )
-        val () = arrayptr_set_at<pollfd>( pool.fds, pool.fdcurr, pollfd_empty() )
-        val () = pool.compress := true
-        val () = pool0 := conceal( pool ) 
-    in 
-      sockenv$setdisposed<senv>(senv);
+async_tcp_pool_error( pool0, env, senv ) = ( 
+      sockenv$setdisposed<senv>(pool0,senv);
       println!("ERR");
-    end
+  )
 
 
 implement  {env}{sockenv}

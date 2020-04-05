@@ -193,13 +193,13 @@ async_tcp_pool_mod_exn{fd}( pool, cfd, evts, senv ) =
 
 implement {env}{senv}
 async_tcp_pool_hup( pool, env, senv ) = (
-  sockenv$setdisposed<senv>(senv);
+  sockenv$setdisposed<senv>(pool,senv);
   println!("HUP");
 )
 
 implement {env}{senv}
 async_tcp_pool_error( pool, env, senv ) = (
-    sockenv$setdisposed<senv>(senv);
+    sockenv$setdisposed<senv>(pool,senv);
     println!("ERR");
   )
 
