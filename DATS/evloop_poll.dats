@@ -6,17 +6,14 @@ staload "libats/libc/SATS/netinet/in.sats"
 staload "libats/libc/SATS/unistd.sats"
 staload "libats/libc/SATS/stdio.sats"
 
-staload "./../SATS/socketfd.sats"
+staload "./../SATS/sockfd.sats"
 staload "./../SATS/poll.sats"
 staload "./../SATS/evloop.sats"
 
-(** FIXME: Replace assertloc with proper exceptions **)
-(** FIXME: Make threading optional **)
-(** FIXME: Make sure env is handled safely when threading is enabled **)
+infixl lhas 
 
 vtypedef poll_client_info = @{
-    sock = socketfd0
-  , polling_state = sock_polling_state
+    polling_state = sock_polling_state
   , socket_index = size_t
   }
 
@@ -29,7 +26,6 @@ vtypedef evloop_impl(a:vt@ype+,n:int) = @{
  , fds       = arrayptr(pollfd,n)
  , data      = arrayptr(ptr,n)
  , nfds      = sizeLte(n)
- , fdcurr    = sizeLt(n)
  , compress  = bool
 
 }
@@ -68,7 +64,6 @@ evloop_create( pool, params ) =
           , fds       = fds
           , data      = data
           , nfds      = i2sz(0)
-          , fdcurr    = i2sz(0)
           , compress  = false
         }
       val p0 : evloop( a ) = conceal( pimpl ) 
@@ -83,10 +78,10 @@ fun {senv:vt@ype+}
   : void =  {
           implement list_vt_filterlin$clear<sockenv(senv)>( x ) 
             = {
-              val ~CLIENT(info,env) = x
+              val ~CLIENT(sock,info,env) = x
               val () = 
                 $effmask_all( 
-                     socketfd_close_exn(info.sock);
+                     sockfd_close_exn(sock);
                      sockenv$free<senv>( env ) 
                   ) 
             } 
@@ -95,7 +90,7 @@ fun {senv:vt@ype+}
               | Disposed() => false
               | _ => true
               ) where {
-                val CLIENT(info,_) = x
+                val CLIENT(_,info,_) = x
               }
 
           var pool : evloop_impl(senv)
@@ -117,10 +112,10 @@ evloop_close_exn( pool0 ) =
           implement (a:vt@ype+) 
             list_vt_freelin$clear<sockenv(a)>( x ) 
             = $effmask_all( 
-                socketfd_close_exn(info.sock); 
+                sockfd_close_exn(sock); 
                 sockenv$free<a>( env ) 
               ) where {
-                val ~CLIENT(info,env) = x
+                val ~CLIENT(sock,info,env) = x
               }
         } 
       )
@@ -132,14 +127,12 @@ implement {env}{senv}
 evloop_hup( pool, env, senv )  = (
   assert_errmsg( evloop_events_dispose( pool, senv )
     , "[evloop_hup] Could not dispose of socket");
-  println!("HUP");
 )
 
 implement {env}{senv}
 evloop_error( pool, env, senv ) = (
     assert_errmsg( evloop_events_dispose( pool, senv )
      , "[evloop_error] Could not dispose of socket");
-    println!("ERR");
 )
 
 implement  {env}{senv}
@@ -223,18 +216,17 @@ evloop_run( pool, env )
             val  p  = arrayptr_get_at<ptr>( pool.data, nfds - 1)
             val sock = pfd.fd
             val status = pollfd_status(  pfd )
-            val () = pool.fdcurr := nfds - 1
 
             var pool0 : evloop(senv)
               = conceal( pool )
             val senv = $UNSAFE.castvwtp1{sockenv(senv)}(p)
             val () = ( 
               ifcase
-              | poll_status_has( status, POLLHUP ) => 
+              | status lhas POLLHUP => 
                     evloop_hup<env><senv>(pool0, env, senv )
-              | poll_status_has( status, POLLERR ) =>
+              | status lhas POLLERR =>
                     evloop_error<env><senv>(pool0, env, senv )
-              | poll_status_has( status, POLLNVAL ) =>
+              | status lhas POLLNVAL =>
                     evloop_error<env><senv>(pool0, env, senv )
               | _ => evloop_process<senv>(pool0, status, senv )
              ) 
@@ -291,9 +283,9 @@ evloop_process<env>( pool, evts, env )
   = let
       val evt : sockevt = ( 
          ifcase
-          | poll_status_has(evts,POLLIN) && poll_status_has(evts,POLLOUT) => EvtRW() 
-          | poll_status_has(evts,POLLIN) => EvtR()
-          | poll_status_has(evts,POLLOUT) => EvtW()
+          | (evts lhas POLLIN) && (evts lhas POLLOUT) => EvtRW() 
+          | evts lhas POLLIN => EvtR()
+          | evts lhas POLLOUT => EvtW()
           | _ => EvtOther()  
       )
       val () = evloop$process<env>( pool, evt, env )
@@ -301,26 +293,25 @@ evloop_process<env>( pool, evts, env )
 
 implement {a}
 sockenv_create( cfd, env ) = 
-  CLIENT(@{
-    sock = cfd
-  , polling_state = NotPolled()
+  CLIENT(cfd,@{
+    polling_state = NotPolled()
   , socket_index = i2sz(0)
   }, env)
 
 implement {a}
 sockenv_decompose( senv ) =
   case+ senv of
-  | ~CLIENT(info,env) => @(info.sock,env) 
+  | ~CLIENT(sock,info,env) => @(sock,env) 
 
 implement {}
 evloop_events_add{a}( pool0, evt, env ) 
    = let
         extern praxi to_opt{b:bool}{a:vt@ype+}( !sockenv(a) >> opt(sockenv(a),b) ) : void
         extern castfn to_opt0{a:vt@ype+}( !sockenv(a) >> opt(sockenv(a),false) ) : sockenv(a)
-        val @CLIENT(info,_) = env
+        val @CLIENT(sock,info,_) = env
 
-      in if socketfd_set_nonblocking( info.sock ) &&
-            socketfd_set_cloexec( info.sock )
+      in if sockfd_set_nonblocking( sock ) &&
+            sockfd_set_cloexec( sock )
          then 
           let
               (** Politicking with dependent types **)
@@ -336,12 +327,12 @@ evloop_events_add{a}( pool0, evt, env )
                     in if nfds < maxconn
                        then
                           let
-                            val @CLIENT(info,_) = senv
+                            val @CLIENT(sock,info,_) = senv
  
                             val () = arrayptr_set_at<pollfd>( 
                                   pool.fds
                                 , nfds
-                                , pollfd_init( socketfd_value(info.sock), $UNSAFE.cast{poll_events}(evts) ) 
+                                , pollfd_init( sockfd_value(sock), $UNSAFE.cast{poll_events}(evts) ) 
                             )
 
                             val () = info.socket_index := nfds
@@ -384,7 +375,7 @@ evloop_events_add{a}( pool0, evt, env )
 implement {}
 evloop_events_del{a}( pool0, env ) 
   = let
-      val @CLIENT(info,_) = env
+      val @CLIENT(_,info,_) = env
 
       var pool : evloop_impl(a)
         = reveal( pool0 )
@@ -406,7 +397,7 @@ evloop_events_del{a}( pool0, env )
 implement {}
 evloop_events_mod{a}( pool0, evts, env ) 
   = let
-      val @CLIENT(info,_) = env
+      val @CLIENT(sock,info,_) = env
 
       var pool :  evloop_impl(a)
         = reveal( pool0 )
@@ -427,7 +418,7 @@ evloop_events_mod{a}( pool0, evts, env )
       val () = arrayptr_set_at<pollfd>( 
               pool.fds
             , ind
-            , pollfd_init( socketfd_value(info.sock), $UNSAFE.cast{poll_events}(ep) ) 
+            , pollfd_init( sockfd_value(sock), $UNSAFE.cast{poll_events}(ep) ) 
         )
       val () = arrayptr_set_at<ptr>( pool.data, ind, $UNSAFE.castvwtp1{ptr}(env) )
       
@@ -443,7 +434,7 @@ evloop_events_dispose( pool, env )
   = let
       val b = evloop_events_del( pool, env )
 
-      val @CLIENT(info,_) = env
+      val @CLIENT(_,info,_) = env
 
       val () = if b then {
             val () = info.polling_state := Disposed()

@@ -1,7 +1,7 @@
 #include "./../HATS/project.hats"
 
 staload "libats/libc/SATS/sys/socket.sats"
-staload "./../SATS/socketfd.sats"
+staload "./../SATS/sockfd.sats"
 
 absvt@ype evloop(a:vt@ype+)
 vtypedef  evloop = [a:vt@ype+] evloop(a)
@@ -24,7 +24,7 @@ datatype sockevt =
 absvt@ype sockenv_evloop_data
 
 datavtype sockenv(env:vt@ype+) =
-  | CLIENT of (sockenv_evloop_data, env)
+  | CLIENT of (sockfd0, sockenv_evloop_data, env)
 
 vtypedef sockenv = [a:vt@ype+] sockenv(a)
 
@@ -44,19 +44,10 @@ fun {}
   evloop_events_dispose{a:vt@ype+}( &evloop(a), !sockenv(a) ) : bool
  
 fun {env:vt@ype+}
-  sockenv_create( socketfd0, env ) : sockenv(env)
+  sockenv_create( sockfd0, env ) : sockenv(env)
 
 fun {env:vt@ype+}
-  sockenv_decompose( sockenv(env) ) : @(socketfd0,env)
-
-fun {env:vt@ype+}{senv:vt@ype+}
-  sockenv_with$fwork( &evloop(senv), !socketfd0, &senv >> _, &env >> _ ) : void
-
-fun {env:vt@ype+}{senv:vt@ype+}
-  sockenv_with(&evloop(senv), !sockenv(env), &env >> _ ) : void
-
-
-(** internal **)
+  sockenv_decompose( sockenv(env) ) : @(sockfd0,env)
 
 fun {a:vt@ype+} 
   evloop_create

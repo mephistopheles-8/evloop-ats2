@@ -10,9 +10,8 @@ staload _ = "libats/DATS/athread.dats"
 staload _ = "libats/DATS/athread_posix.dats"
 
 
-staload "./SATS/socketfd.sats"
-staload "./SATS/bufptr.sats"
-staload _ = "./DATS/socketfd.dats"
+staload "./SATS/sockfd.sats"
+staload _ = "./DATS/sockfd.dats"
 
 #ifdef ASYNCNET_EPOLL
 staload "./SATS/epoll.sats"
@@ -24,6 +23,7 @@ staload _ = "./DATS/kqueue.dats"
 staload "./SATS/select.sats"
 #elifdef ASYNCNET_POLL
 staload "./SATS/poll.sats"
+staload _ = "./DATS/poll.dats"
 #endif
 
 staload "./SATS/evloop.sats"
@@ -37,5 +37,4 @@ staload _ = "./DATS/evloop_select.dats"
 #elifdef ASYNCNET_POLL
 staload _ = "./DATS/evloop_poll.dats"
 #endif
-
 #endif

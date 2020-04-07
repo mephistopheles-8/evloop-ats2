@@ -34,7 +34,7 @@ typedef pollfd(n:int) =
 
 typedef pollfd = [fd:int] pollfd(fd)
 
-fn pollfd_empty() : pollfd
+fun {} pollfd_empty() : pollfd
 
 fn poll{n,m:nat | m <= n}(
    fds: &(@[pollfd][n])
@@ -61,15 +61,19 @@ castfn poll_status2sint : poll_status -<> sint
 castfn poll_events2status : poll_events -<> poll_status
 
 
-fn poll_status_has_status( poll_status, poll_status ) : bool
-fn poll_status_has_event( poll_status, poll_events ) : bool
+fun {} poll_status_lhas_status_status( poll_status, poll_status ) : bool
+fun {} poll_status_lhas_status_events( poll_status, poll_events ) : bool
 
-symintr poll_status_has 
-overload poll_status_has with poll_status_has_status
-overload poll_status_has with poll_status_has_event
+symintr poll_status_lhas 
+overload poll_status_lhas with poll_status_lhas_status_status
+overload poll_status_lhas with poll_status_lhas_status_events
 
-fn pollfd_init{n:int}( fd : int n, events : poll_events ) : pollfd(n) 
-fn pollfd_status ( pollfd ) :<> poll_status
+overload lhas with poll_status_lhas_status_status
+overload lhas with poll_status_lhas_status_events
+
+
+fun {} pollfd_init{n:int}( fd : int n, events : poll_events ) : pollfd(n) 
+fun {} pollfd_status ( pollfd ) :<> poll_status
 
 symintr pe2si ps2si pe2ps 
 overload pe2si with poll_events2sint
@@ -80,7 +84,7 @@ macdef POLLIN = $extval(poll_status,"POLLIN")
 macdef POLLPRI = $extval(poll_status,"POLLPRI")
 macdef POLLOUT = $extval(poll_status,"POLLOUT")
 
-fun poll_status_lor ( poll_status, poll_status ) :<> poll_status
+fun {} poll_status_lor ( poll_status, poll_status ) :<> poll_status
 overload lor with poll_status_lor
 
 /* These values are defined in XPG4.2.  */

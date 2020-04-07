@@ -4,29 +4,24 @@
 #include "share/atspre_staload.hats"
 staload "libats/libc/SATS/sys/socket.sats"
 staload "libats/libc/SATS/errno.sats"
-staload "./../SATS/socketfd.sats"
+staload "./../SATS/sockfd.sats"
 staload "./../SATS/epoll.sats"
-
-#ifdef _ASYNCNET_LINK
-exception EpollCreateExn
-exception EpollCloseExn of (epollfd)
-#endif
 
 implement {}
 epoll_event_kind_lor( e1, e2 ) =
   $UNSAFE.cast{epoll_event_kind}( eek2ui(e1) lor eek2ui(e2) ) 
 
 implement {}
-eek_has( e1,e2 ) 
+event_kind_lhas( e1,e2 ) 
   = $UNSAFE.cast{int}(eek2ui(e1) land eek2ui(e2)) != 0 
 
 
-implement
+implement {}
 epollfd_add0( efd, sfd, events, data )
   = let
       (** Ignore EINTR **)
       fun loop
-      ( efd: !epollfd, sfd: !socketfd0, event: &epoll_event )
+      ( efd: !epollfd, sfd: !sockfd0, event: &epoll_event )
       : intBtwe(~1,0) =
           if epoll_ctl(efd,EPOLL_CTL_ADD,sfd,event) = 0
           then 0
@@ -43,64 +38,30 @@ epollfd_add0( efd, sfd, events, data )
      in loop( efd, sfd, event )
     end 
 
-implement
-epollfd_create_exn ()
+implement {}
+epollfd_create_exn (behv)
   = let
-      val (pf | fd ) = epoll_create1(EP0)
-    in if fd > 0
-       then 
-          let
-              prval Some_v( pfep ) = pf
-           in epollfd_encode( pfep | fd )
-          end
-       else $raise EpollCreateExn()
-          where {
-              prval None_v(  ) = pf
-          }
+      val (pf | fd ) = epoll_create1(behv)
+      val () 
+        = assert_errmsg( fd > 0
+            , "[epoll_create_exn] Could not create epoll fd" )
+      prval Some_v(pep) = pf
+    in epollfd_encode( pep | fd ) 
     end
 
-implement
+implement {}
 epollfd_close_exn(efd) 
   = let
       val (pfep | fd ) = epollfd_decode( efd )  
       val ( pf | err ) = epollfd_close( pfep | fd )
-      val () = assertloc( err = 0 )
-     in if err = 0 
-        then { 
-            prval None_v() = pf  
-          }
-        else $raise EpollCloseExn(epollfd_encode( pfep | fd ))
-          where {
-            prval Some_v(pfep) = pf  
-          }
+      val () 
+        = assert_errmsg( err = 0
+            , "[epoll_close_exn] Could not close epoll fd" )
+      prval None_v() = pf
+    in
     end
 
-implement
+implement {}
 epoll_event_empty () =
       @{events = $UNSAFE.cast{epoll_event_kind}(0), data = epoll_data_ptr(the_null_ptr) }
-
-
-implement {env}
-epoll_events_foreach( pwait, parr | p, n, env ) 
-  = let
-      implement
-      array_foreach$fwork<epoll_event><env>( x, env ) =
-          epoll_events_foreach$fwork<env>( pf | x.events, sfd , env )
-        where {
-            extern
-            prfn epoll_add_intr {fd:int}{st:status}( !socketfd(fd,st) ) 
-              : epoll_add_v(fd,st)
-
-            val sfd = $UNSAFE.castvwtp1{socketfd0}(x.data.fd)
-            prval pf = epoll_add_intr(sfd)
-          }
-
-      prval (pf1, pf2 ) = array_v_split_at(parr | i2sz(n))
- 
-      val _ = array_foreach_env<epoll_event><env>( !p, i2sz(n), env )
-
-      prval () = parr := array_v_unsplit( pf1, pf2 )
- 
-    in ()
-    end
 

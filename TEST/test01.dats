@@ -1,7 +1,7 @@
 
-#define ASYNCNET_POLL
+#define ASYNCNET_EPOLL
 #include "share/atspre_staload.hats"
-#include "./../mylibies_link.hats"
+#include "./../mylibies.hats"
 staload "libats/libc/SATS/sys/socket.sats"
 staload "libats/libc/SATS/sys/socket_in.sats"
 staload "libats/libc/SATS/netinet/in.sats"
@@ -12,10 +12,10 @@ staload "libats/libc/SATS/fcntl.sats"
 
 absreimpl evloop_params
 
-datatype conn_status(status) = 
-  | Listen(listen)
-  | Read(conn)
-  | Write(conn)
+datatype conn_status = 
+  | Listen
+  | Read
+  | Write
 
 datatype parse_status = 
   | psnil
@@ -26,7 +26,7 @@ datatype parse_status =
   | psfailure
     
 vtypedef client_state = @{
-    status = [st:status] conn_status(st)
+    status = conn_status
   , bytes_read = size_t
   , parse_status = parse_status
   , reqs_served = int
@@ -40,13 +40,13 @@ macdef SOMAXCONN = $extval(intGt(0), "SOMAXCONN")
 implement main0 () = println!("Hello [test01]")
   where {
     var p : evloop(client_state)?
-    var lfd : socketfd0?
+    var lfd : sockfd0?
 
     var evloop_params : evloop_params = (@{
         maxevents = i2sz(256)
       } : evloop_params)
 
-    var lsock_params : socketfd_setup_params = (@{
+    var lsock_params : sockfd_setup_params = (@{
         af = AF_INET
       , st = SOCK_STREAM 
       , nonblocking = true // handled by evloop
@@ -59,7 +59,7 @@ implement main0 () = println!("Hello [test01]")
     })
 
     val () =
-      if socketfd_setup( lfd, lsock_params )
+      if sockfd_setup( lfd, lsock_params )
       then 
        let
             prval () = sockopt_unsome( lfd )
@@ -86,7 +86,7 @@ implement main0 () = println!("Hello [test01]")
                 | Listen() =>
                     let
                         implement
-                        socketfd_accept_all$withfd<evloop(client_state)>(cfd,pool) = {
+                        sockfd_accept_all$withfd<evloop(client_state)>(cfd,pool) = {
                           var cfd = cfd
                           var cinfo : client_state = @{
                                 status = Read()
@@ -98,10 +98,10 @@ implement main0 () = println!("Hello [test01]")
                           val () = assertloc( evloop_events_add{client_state}( pool, EvtR(), senv ) )
                           prval () = opt_unnone( senv )
                         }
-                        extern praxi socket_is_listening{fd:int}{st:status}( !socketfd(fd,st) >> socketfd(fd,listen) ) : void
-                        prval () = socket_is_listening( data.sock )
+                        extern praxi socket_is_listening{fd:int}{st:status}( !sockfd(fd,st) >> sockfd(fd,listen) ) : void
+                        prval () = socket_is_listening( sock )
  
-                        val ()   = socketfd_accept_all<evloop(client_state)>(data.sock, pool)
+                        val ()   = sockfd_accept_all<evloop(client_state)>(sock, pool)
                         prval () = fold@env
                      in
                     end
@@ -120,14 +120,12 @@ implement main0 () = println!("Hello [test01]")
 
                       fun loop{fd:int}{n:nat}(
                              info: &client_state >> _ 
-                           , data : &sockenv_evloop_data
+                           , sock : &sockfd(fd,conn)
                            , buf: &array(byte,n)
                            , sz : size_t n
                       ) : l_action 
                        = let
-                            extern praxi socket_is_conn{fd:int}{st:status}( !socketfd(fd,st) >> socketfd(fd,conn) ) : void
-                            prval () = socket_is_conn( data.sock )
-                            val ssz = socketfd_read(data.sock,buf,sz) 
+                            val ssz = sockfd_read(sock,buf,sz) 
                           in if  ssz > 0 then 
                               let
                                 prval (pf1,pf2) = array_v_split_at( view@buf | g1int2uint(ssz) )
@@ -158,7 +156,7 @@ implement main0 () = println!("Hello [test01]")
                               in case+ info.parse_status of
                                  | pssuccess() => arm_write()
                                  | psfailure() => close_sock()
-                                 | _         => loop(info,data,buf,sz)
+                                 | _         => loop(info,sock,buf,sz)
                               end
                             else  ifcase
                                   | ssz = 0 => close_sock() 
@@ -166,7 +164,9 @@ implement main0 () = println!("Hello [test01]")
                                   | _ => close_sock() 
                          end
 
-                       val b = loop(info, data, buf, i2sz(BUFSZ) ) 
+                        extern praxi socket_is_conn{fd:int}{st:status}( !sockfd(fd,st) >> sockfd(fd,conn) ) : void
+                       prval () = socket_is_conn( sock )
+                       val b = loop(info, sock, buf, i2sz(BUFSZ) ) 
  
                     in case+ b of
                        | arm_write() => {
@@ -184,10 +184,10 @@ implement main0 () = println!("Hello [test01]")
                     end
                 | Write() =>
                     let
-                      extern praxi socket_is_conn{fd:int}{st:status}( !socketfd(fd,st) >> socketfd(fd,conn) ) : void
-                      prval () = socket_is_conn( data.sock )
-                      val ssz = socketfd_write_string( 
-                        data.sock, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 10\r\n\r\nHello guys", i2sz(75) )
+                      extern praxi socket_is_conn{fd:int}{st:status}( !sockfd(fd,st) >> sockfd(fd,conn) ) : void
+                      prval () = socket_is_conn( sock )
+                      val ssz = sockfd_write_string( 
+                        sock, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 10\r\n\r\nHello guys", i2sz(75) )
                       val () = info.status := Read()
                       prval () = fold@env
                       val () = assertloc( evloop_events_mod( pool, EvtR(), env) )
@@ -195,8 +195,7 @@ implement main0 () = println!("Hello [test01]")
                     end
 
               ) where {
-                absreimpl sockenv_evloop_data
-                val @CLIENT(data,info) = env
+                val @CLIENT(sock,data,info) = env
               }
 
               val () = println!("Created TCP pool on port ", lsock_params.port )
@@ -211,7 +210,7 @@ implement main0 () = println!("Hello [test01]")
               prval () = opt_unnone( p ) 
             in
               println!("Failed to create TCP pool");
-              socketfd_close_exn( lfd )  
+              sockfd_close_exn( lfd )  
             end
        end
       else println!("Failed to creatte listening socket") where {

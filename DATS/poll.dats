@@ -5,7 +5,7 @@
 staload "./../SATS/poll.sats"
 
 
-implement
+implement {}
 pollfd_empty ( ) =
   let
     var pfd : pollfd(~1)
@@ -15,15 +15,15 @@ pollfd_empty ( ) =
    in pfd
   end
 
-implement
-poll_status_has_status( ps0, ps1) =
+implement {}
+poll_status_lhas_status_status( ps0, ps1) =
   (($UNSAFE.cast{uint}(ps0) land $UNSAFE.cast{uint}(ps1)) > 0 )
 
-implement
-poll_status_has_event( ps0, ps1) =
+implement {}
+poll_status_lhas_status_events( ps0, ps1) =
   (($UNSAFE.cast{uint}(ps0) land $UNSAFE.cast{uint}(ps1)) > 0 )
 
-implement
+implement {}
 pollfd_init{fd}( fd, s ) =
   let
     var pfd : pollfd(fd)
@@ -33,12 +33,11 @@ pollfd_init{fd}( fd, s ) =
    in pfd
   end
 
-implement
+implement {}
 pollfd_status( pfd ) =
  $UNSAFE.cast{poll_status}(pfd.revents)
 
-
-implement 
+implement {}
 poll_status_lor( ps0, ps1) =
   ($UNSAFE.cast{poll_status}($UNSAFE.cast{uint}(ps0) lor $UNSAFE.cast{uint}(ps1)))
 

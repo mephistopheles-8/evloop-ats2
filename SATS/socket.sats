@@ -3,7 +3,7 @@
 
 (** libats imports **)
 staload "libats/libc/SATS/sys/socket.sats"
-staload "./socketfd.sats"
+staload "./sockfd.sats"
 
 abst@ype socket(int,status) = int
 typedef socket0 = [fd:int][st:status] socket(fd,st)
@@ -11,15 +11,15 @@ typedef socket1(st: status) = [fd:int] socket(fd,st)
 (** ** ** ** ** ** **)
 
 
-castfn socketfd_socket
+castfn sockfd_socket
   {fd:int}{s:status}
-  ( socketfd(fd,s) ) 
+  ( sockfd(fd,s) ) 
   : (socket_v(fd,s) | socket(fd, s) )
 
-castfn socket_socketfd
+castfn socket_sockfd
   {fd:int}{s:status}
   ( socket_v(fd,s) | socket(fd,s) ) 
-  : socketfd(fd,s)
+  : sockfd(fd,s)
 
 fun socket_read
   {fd:int}{n,m:nat | m <= n}

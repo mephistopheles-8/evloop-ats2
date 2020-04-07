@@ -7,17 +7,14 @@ staload "libats/libc/SATS/unistd.sats"
 staload "libats/libc/SATS/stdio.sats"
 staload "libats/libc/SATS/errno.sats"
 
-staload "./../SATS/socketfd.sats"
+staload "./../SATS/sockfd.sats"
 staload "./../SATS/kqueue.sats"
 staload "./../SATS/evloop.sats"
 
-(** FIXME: Replace assertloc with proper exceptions **)
-(** FIXME: Make threading optional **)
-(** FIXME: Make sure env is handled safely when threading is enabled **)
+infixl lhas
 
 vtypedef kqueue_client_info = @{
-    sock = socketfd0
-  , polling_state = sock_polling_state
+    polling_state = sock_polling_state
   }
 
 absimpl sockenv_evloop_data = kqueue_client_info
@@ -69,10 +66,10 @@ fun {senv:vt@ype+}
       where {
           implement list_vt_filterlin$clear<sockenv(senv)>( x ) 
             = {
-              val ~CLIENT(info,env) = x
+              val ~CLIENT(sock,info,env) = x
               val () = 
                 $effmask_all( 
-                     socketfd_close_exn(info.sock);
+                     sockfd_close_exn(sock);
                      sockenv$free<senv>( env ) 
                   ) 
             } 
@@ -81,7 +78,7 @@ fun {senv:vt@ype+}
               | Disposed() => false
               | _ => true
               ) where {
-                val CLIENT(info,_) = x
+                val CLIENT(_,info,_) = x
               }
       }
   
@@ -94,10 +91,10 @@ evloop_close_exn( pool ) =
           implement (a:vt@ype+) 
             list_vt_freelin$clear<sockenv(a)>( x ) 
             = $effmask_all( 
-                socketfd_close_exn(info.sock); 
+                sockfd_close_exn(sock); 
                 sockenv$free<a>( env ) 
               ) where {
-                val ~CLIENT(info,env) = x
+                val ~CLIENT(sock,info,env) = x
               }
         } 
       )
@@ -109,14 +106,12 @@ implement {env}{senv}
 evloop_hup( pool, env, senv )  = (
   assert_errmsg( evloop_events_dispose( pool, senv )
     , "[evloop_hup] Could not dispose of socket");
-  println!("HUP");
 )
 
 implement {env}{senv}
 evloop_error( pool, env, senv ) = (
     assert_errmsg( evloop_events_dispose( pool, senv )
      , "[evloop_error] Could not dispose of socket");
-    println!("ERR");
 )
 
 implement  {env}{senv}
@@ -142,11 +137,11 @@ evloop_run( pool, env )
 
             val () =
               ifcase
-               | kevent_status_has(flags2status(flags), EV_EOF ) => { 
+               | flags2status(flags) lhas EV_EOF => { 
                     val () =  evloop_hup<env><senv>(pool,  env, senv0 )
                     prval () = $UNSAFE.cast2void(senv0)
                   }
-               | kevent_status_has(flags2status(flags), EV_ERROR ) => { 
+               | flags2status(flags) lhas EV_ERROR => { 
                     val () = evloop_error<env><senv>(pool, env, senv0 )
                     prval () = $UNSAFE.cast2void(senv0)
                   }
@@ -188,15 +183,14 @@ evloop_run( pool, env )
 
 implement {a}
 sockenv_create( cfd, env ) = 
-  CLIENT(@{
-    sock = cfd
-  , polling_state = NotPolled()
+  CLIENT(cfd,@{
+    polling_state = NotPolled()
   }, env)
 
 implement {a}
 sockenv_decompose( senv ) =
   case+ senv of
-  | ~CLIENT(info,env) => @(info.sock,env) 
+  | ~CLIENT(sock,info,env) => @(sock,env) 
 
 
 implement (env:vt@ype+)
@@ -204,9 +198,9 @@ evloop_process<env>( pool, evts, env )
   = let
       val evt : sockevt = ( 
          ifcase
-          | evfilt_has(evts,EVFILT_READ) && evfilt_has(evts,EVFILT_WRITE) => EvtRW() 
-          | evfilt_has(evts,EVFILT_READ) => EvtR()
-          | evfilt_has(evts,EVFILT_WRITE) => EvtW()
+          | (evts lhas EVFILT_READ) && (evts lhas EVFILT_WRITE) => EvtRW() 
+          | evts lhas EVFILT_READ => EvtR()
+          | evts lhas EVFILT_WRITE => EvtW()
           | _ => EvtOther()  
       )
       val () = evloop$process<env>( pool, evt, env )
@@ -241,10 +235,10 @@ evloop_events_add{a}( pool, evt, env )
    = let
         extern praxi to_opt{b:bool}{a:vt@ype+}( !sockenv(a) >> opt(sockenv(a),b) ) : void
         extern castfn to_opt0{a:vt@ype+}( !sockenv(a) >> opt(sockenv(a),false) ) : sockenv(a)
-        val @CLIENT(info,_) = env
+        val @CLIENT(sock,info,_) = env
 
-      in if socketfd_set_nonblocking( info.sock ) &&
-            socketfd_set_cloexec( info.sock )
+      in if sockfd_set_nonblocking( sock ) &&
+            sockfd_set_cloexec( sock )
          then
           let 
             val ep : evfilt = (
@@ -253,10 +247,10 @@ evloop_events_add{a}( pool, evt, env )
               | EvtW() => EVFILT_WRITE
               | EvtRW() => EVFILT_READ lor EVFILT_WRITE
             )
-            val b = loop(pool, info.sock, ep, $UNSAFE.castvwtp1{ptr}(env)) where {
+            val b = loop(pool, sock, ep, $UNSAFE.castvwtp1{ptr}(env)) where {
               (** ignore EINTR **) 
               fun loop{fd:int}{st:status} 
-              ( pool: &evloop, cfd: !socketfd(fd,st), evts : evfilt,  senv : ptr )
+              ( pool: &evloop, cfd: !sockfd(fd,st), evts : evfilt,  senv : ptr )
               : bool =
                  let
                     var empt = kevent_empty()
@@ -297,7 +291,7 @@ evloop_events_mod( pool, evt, env )
   = let
       (** ignore EINTR **) 
       fun loop{fd:int}{st:status}{a:vt@ype+} 
-      ( pool: &evloop(a), evt : evfilt, action: kevent_action, cfd: !socketfd(fd,st), senv : ptr )
+      ( pool: &evloop(a), evt : evfilt, action: kevent_action, cfd: !sockfd(fd,st), senv : ptr )
       : bool =
          let
             var empt = kevent_empty()
@@ -309,22 +303,22 @@ evloop_events_mod( pool, evt, env )
               | _ => false 
          end 
 
-      val @CLIENT(info,_) = env
+      val @CLIENT(sock,info,_) = env
 
       val b : bool = (
         case+ info.polling_state of
         | PolledR() => b where { 
-             val b = loop( pool, EVFILT_READ, EV_DELETE, info.sock, the_null_ptr )
+             val b = loop( pool, EVFILT_READ, EV_DELETE, sock, the_null_ptr )
              val () = if b then info.polling_state := NotPolled()
           }
         | PolledW() => b where { 
-            val b = loop( pool, EVFILT_WRITE, EV_DELETE, info.sock, the_null_ptr )
+            val b = loop( pool, EVFILT_WRITE, EV_DELETE, sock, the_null_ptr )
             val () = if b then info.polling_state := NotPolled()
 
           }
         | PolledRW() => b0 && b1 where {
-             val b0 = loop( pool, EVFILT_READ, EV_DELETE, info.sock, the_null_ptr )
-             val b1 = loop( pool, EVFILT_WRITE, EV_DELETE, info.sock, the_null_ptr )
+             val b0 = loop( pool, EVFILT_READ, EV_DELETE, sock, the_null_ptr )
+             val b1 = loop( pool, EVFILT_WRITE, EV_DELETE, sock, the_null_ptr )
              val () = (
                 ifcase 
                  | b0 && b1 => info.polling_state := NotPolled() 
@@ -342,12 +336,12 @@ evloop_events_mod( pool, evt, env )
         then (
           case+ evt of
           | EvtR() => (
-             if loop( pool, EVFILT_READ, EV_ADD, info.sock, senv0 )
+             if loop( pool, EVFILT_READ, EV_ADD, sock, senv0 )
              then ( info.polling_state := PolledR(); true)
              else false
             ) 
           | EvtW() => (
-             if loop( pool, EVFILT_WRITE, EV_ADD, info.sock, senv0 )
+             if loop( pool, EVFILT_WRITE, EV_ADD, sock, senv0 )
              then ( info.polling_state := PolledW(); true)
              else false
             ) 
@@ -356,8 +350,8 @@ evloop_events_mod( pool, evt, env )
              then ( info.polling_state := PolledRW(); true)
              else false
            ) where {
-             val b0 = loop( pool, EVFILT_READ, EV_ADD, info.sock, senv0 )
-             val b1 = loop( pool, EVFILT_WRITE, EV_ADD, info.sock, senv0 )
+             val b0 = loop( pool, EVFILT_READ, EV_ADD, sock, senv0 )
+             val b1 = loop( pool, EVFILT_WRITE, EV_ADD, sock, senv0 )
              val () = (
                 ifcase 
                  | b0 && b1 => info.polling_state := PolledRW() 
@@ -380,7 +374,7 @@ evloop_events_del( pool, env )
   = let
       (** ignore EINTR **) 
       fun loop{fd:int}{st:status}{a:vt@ype+} 
-      ( pool: &evloop(a), evt : evfilt, action: kevent_action, cfd: !socketfd(fd,st) )
+      ( pool: &evloop(a), evt : evfilt, action: kevent_action, cfd: !sockfd(fd,st) )
       : bool =
          let
             var empt = kevent_empty()
@@ -392,17 +386,17 @@ evloop_events_del( pool, env )
               | _ => false 
          end 
 
-      val @CLIENT(info,_) = env
+      val @CLIENT(sock,info,_) = env
 
       val b : bool = (
         case+ info.polling_state of
         | PolledR() => 
-             loop( pool, EVFILT_READ, EV_DELETE, info.sock )
+             loop( pool, EVFILT_READ, EV_DELETE, sock )
         | PolledW() =>  
-             loop( pool, EVFILT_WRITE, EV_DELETE, info.sock )
+             loop( pool, EVFILT_WRITE, EV_DELETE, sock )
         | PolledRW() => b0 && b1 where {
-             val b0 = loop( pool, EVFILT_READ, EV_DELETE, info.sock )
-             val b1 = loop( pool, EVFILT_WRITE, EV_DELETE, info.sock )
+             val b0 = loop( pool, EVFILT_READ, EV_DELETE, sock )
+             val b1 = loop( pool, EVFILT_WRITE, EV_DELETE, sock )
              val () = (
                 ifcase 
                  | b0 && b1 => info.polling_state := NotPolled() 
@@ -427,7 +421,7 @@ evloop_events_dispose( pool, env )
   = let
       val b = evloop_events_del( pool, env )
 
-      val @CLIENT(info,_) = env
+      val @CLIENT(_,info,_) = env
 
       val () = if b then {
             val () = info.polling_state := Disposed()
