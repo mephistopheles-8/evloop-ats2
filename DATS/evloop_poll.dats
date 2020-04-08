@@ -76,27 +76,44 @@ fun {senv:vt@ype+}
   evloop_clear_disposed
   ( pool0: &evloop(senv) )
   : void =  {
-          implement list_vt_filterlin$clear<sockenv(senv)>( x ) 
-            = {
-              val ~CLIENT(sock,info,env) = x
-              val () = 
-                $effmask_all( 
-                     sockfd_close_exn(sock);
-                     sockenv$free<senv>( env ) 
-                  ) 
-            } 
-          implement list_vt_filterlin$pred<sockenv(senv)>( x ) = ( 
-             case+ info.polling_state of
-              | Disposed() => false
-              | _ => true
-              ) where {
-                val CLIENT(_,info,_) = x
-              }
-
+          fun loop(
+            pool: &evloop_impl(senv) 
+          , xs0 : List0_vt(sockenv(senv))
+          , xs1 : &ptr? >> List0_vt(sockenv(senv))
+          ) : void 
+            = case+ xs0 of
+              | list_vt_nil() => (xs1 := xs0) 
+              | list_vt_cons(x,xs) => (
+                  case+ info.polling_state of
+                  | Disposed() => {
+                      val ~list_vt_cons(x,xs) = xs0
+                      val ~CLIENT(sock,info,env) = x
+                      val () = (
+                        sockfd_close_exn(sock);
+                        sockenv$free<senv>( env )
+                      ) 
+                      val () = loop(pool,xs,xs1)
+                    }
+                  | _ => {
+                      val () = xs1 := xs0
+                      val @list_vt_cons(_,xs) = xs1
+                      val xs2 = xs
+                      val () = loop(pool,xs2,xs) 
+                      prval () = fold@xs1 
+                    }
+                ) where {
+                  val CLIENT(_,info,_) = x
+                }
+              
           var pool : evloop_impl(senv)
             = reveal( pool0 )
+          var clients = pool.clients
+          var p : ptr? 
+          val () = pool.clients := list_vt_nil()
+          val () = loop( pool, clients, p)
+          val-~list_vt_nil() = pool.clients
           val () = 
-            pool.clients := list_vt_filterlin<sockenv(senv)>(  pool.clients )
+            pool.clients := p
           val () = pool0 := conceal( pool ) 
 
       }
@@ -375,17 +392,27 @@ evloop_events_add{a}( pool0, evt, env )
 implement {}
 evloop_events_del{a}( pool0, env ) 
   = let
-      val @CLIENT(_,info,_) = env
+      val @CLIENT(sock,info,_) = env
 
       var pool : evloop_impl(a)
         = reveal( pool0 )
 
-      val ind = g1ofg0( info.socket_index )
       val maxconn = pool.maxconn
-      val () = assert_errmsg( ind < maxconn
-        , "[evloop_events_del] Invalid socket index" )
+      (** There may be multiple events on this socket **)
 
-      val () = arrayptr_set_at<pollfd>( pool.fds, ind, pollfd_empty() )
+      val _ = arrayptr_foreach_env<pollfd><(@(size_t,int))>( pool.fds, maxconn, env ) where {
+          var env : @(size_t,int) = @(pool.nfds,sockfd_value(sock)) 
+          implement array_foreach$fwork<pollfd><(@(size_t,int))>( pfd, env ) = (
+            if pfd.fd = env.1
+            then pfd := pollfd_empty()
+            else ()
+          ) where {
+            val nfds = g1ofg0(env.0)
+            val () = if nfds > 0 then env.0 := (nfds - 1) else ()
+          }
+          implement array_foreach$cont<pollfd><(@(size_t,int))>( pfd, env ) = env.0 > 0
+      } 
+
       val () = pool.compress := true
       val () = pool0 := conceal( pool ) 
 

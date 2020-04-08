@@ -1,5 +1,5 @@
 
-#define ASYNCNET_EPOLL
+#define ASYNCNET_POLL
 #include "share/atspre_staload.hats"
 #include "./../mylibies.hats"
 staload "libats/libc/SATS/sys/socket.sats"
