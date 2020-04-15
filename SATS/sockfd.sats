@@ -245,7 +245,7 @@ sockfd_readall
   : bool
 
 fun {env: vt@ype+} sockfd_accept_all$withfd( cfd: sockfd1(conn), &env >> _ )
-  : void 
+  : bool 
 
 fun {env: vt@ype+} 
 sockfd_accept_all{fd:int}( sfd: !sockfd(fd,listen), env: &env >> _ ) 

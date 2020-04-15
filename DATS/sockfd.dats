@@ -348,8 +348,9 @@ sockfd_accept_all{fd:int}( sfd, env )
       then
         let
           prval () = sockopt_unsome(cfd)
-          val () = sockfd_accept_all$withfd<env>(cfd,env)
-        in sockfd_accept_all<env>( sfd, env )
+        in if sockfd_accept_all$withfd<env>(cfd,env)
+           then sockfd_accept_all<env>( sfd, env )
+           else ()
         end
       else 
         let
