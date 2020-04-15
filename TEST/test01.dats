@@ -86,7 +86,17 @@ implement main0 () = println!("Hello [test01]")
                 | Listen() =>
                     let
                         implement
-                        sockfd_accept_all$withfd<evloop(client_state)>(cfd,pool) = true where {
+                        sockfd_accept_all$withfd<evloop(client_state)>(cfd,pool) = (
+                          if evloop_events_add{client_state}( pool, EvtR(), senv )
+                          then true where {
+                              prval () = opt_unnone( senv )
+                            }
+                          else false where {
+                            prval () = opt_unsome( senv )
+                            val @(cfd,_) = sockenv_decompose<client_state>( senv )
+                            val () = sockfd_close_exn( cfd )
+                          }
+                        ) where {
                           var cfd = cfd
                           var cinfo : client_state = @{
                                 status = Read()
@@ -95,8 +105,6 @@ implement main0 () = println!("Hello [test01]")
                               , reqs_served = 0
                             }
                           var senv = sockenv_create<client_state>( cfd, cinfo )
-                          val () = assertloc( evloop_events_add{client_state}( pool, EvtR(), senv ) )
-                          prval () = opt_unnone( senv )
                         }
                         extern praxi socket_is_listening{fd:int}{st:status}( !sockfd(fd,st) >> sockfd(fd,listen) ) : void
                         prval () = socket_is_listening( sock )
