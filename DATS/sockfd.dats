@@ -364,10 +364,10 @@ sockfd_accept_all{fd:int}( sfd, env )
 
 implement {}
 eq_sockfd_int{fd,n}{st}( sfd, n) 
-  = $UNSAFE.castvwtp1{int fd}(sfd) = n
+  = sockfd_value(sfd) = n
 
 implement {} eq_sockfd_sockfd{fd,fd1}{st,st1}( sfd, sfd1 ) 
-  = $UNSAFE.castvwtp1{int fd}(sfd) = $UNSAFE.castvwtp1{int fd1}(sfd1)
+  = sockfd_value(sfd) = sockfd_value(sfd1)
 
 implement {env}
 sockfd_readall( sfd, buf, sz, env ) 

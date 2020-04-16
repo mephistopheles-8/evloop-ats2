@@ -37,7 +37,7 @@ castfn sockfd_decode
 castfn sockfd_value
   {fd:int}{s:status}
   ( !sockfd(fd, s) ) 
-  : int fd
+  :<> int fd
 
 
 castfn sockfd_fildes
