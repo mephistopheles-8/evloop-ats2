@@ -1,6 +1,9 @@
 # evloop
 
-A thin ATS2 wrapper over system async APIs (epoll,kevent,poll)
+A thin ATS2 wrapper over system async APIs (epoll,kevent,poll),
+modeled closely off of the [`libh2o`](https://github.com/h2o/h2o) event loop.
+
+Works, but is in early stages. 
 
 ## Backends
 
