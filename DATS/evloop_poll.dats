@@ -89,7 +89,7 @@ fun {senv:vt@ype+}
                       val ~list_vt_cons(x,xs) = xs0
                       val ~CLIENT(sock,info,env) = x
                       val () = (
-                        sockfd_close_exn(sock);
+                        sockfd_close_ign(sock);
                         sockenv$free<senv>( env )
                       ) 
                       val () = loop(pool,xs,xs1)
@@ -129,7 +129,7 @@ evloop_close_exn( pool0 ) =
           implement (a:vt@ype+) 
             list_vt_freelin$clear<sockenv(a)>( x ) 
             = $effmask_all( 
-                sockfd_close_exn(sock); 
+                sockfd_close_ign(sock); 
                 sockenv$free<a>( env ) 
               ) where {
                 val ~CLIENT(sock,info,env) = x
@@ -141,16 +141,16 @@ evloop_close_exn( pool0 ) =
   end
   
 implement {env}{senv}
-evloop_hup( pool, env, senv )  = (
-  assert_errmsg( evloop_events_dispose( pool, senv )
-    , "[evloop_hup] Could not dispose of socket");
-)
+evloop_hup( pool, env, senv )  = {
+  val _ = evloop_events_dispose( pool, senv )
+  (** Log if this fails? **)
+}
 
 implement {env}{senv}
-evloop_error( pool, env, senv ) = (
-    assert_errmsg( evloop_events_dispose( pool, senv )
-     , "[evloop_error] Could not dispose of socket");
-)
+evloop_error( pool, env, senv ) = {
+  val _ = evloop_events_dispose( pool, senv )
+  (** Log if this fails? **)
+}
 
 implement  {env}{senv}
 evloop_run( pool, env )  

@@ -56,7 +56,7 @@ evloop$process<client_state>( pool, evts, env ) = (
             else false where {
               prval () = opt_unsome( senv )
               val @(cfd,_) = sockenv_decompose<client_state>( senv )
-              val () = sockfd_close_exn( cfd )
+              val () = sockfd_close_ign( cfd )
             }
           ) where {
             var cfd = cfd

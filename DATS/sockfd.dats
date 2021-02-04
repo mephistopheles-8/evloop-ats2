@@ -177,6 +177,13 @@ sockfd_close_exn(sfd)
      in
     end
 
+implement {} 
+sockfd_close_ign(sfd)
+  = let
+      val sfd = $UNSAFE.castvwtp0{int}(sfd)
+     in $extfcall(void,"close",sfd)
+    end
+
 implement {}
 sockfd_create_bind_port(sfd,p)
   = let
@@ -232,7 +239,7 @@ sockfd_create_bind_port(sfd,p)
               let
                 prval () = sockalt_unright(sfd)
 
-                val () = sockfd_close_exn( sfd )
+                val () = sockfd_close_ign( sfd )
                
                 prval () = sockopt_none{bind}(sfd)
                   
@@ -325,7 +332,7 @@ sockfd_setup(sfd,params)
            else 
             let
                 prval () = sockalt_unright( sfd )   
-                val () = sockfd_close_exn( sfd )
+                val () = sockfd_close_ign( sfd )
                 prval () = sockopt_none( sfd )
              in false 
             end

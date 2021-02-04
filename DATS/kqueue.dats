@@ -6,13 +6,31 @@ staload "libats/libc/SATS/sys/socket.sats"
 staload "./../SATS/sockfd.sats"
 staload "./../SATS/kqueue.sats"
 
+(** Avoid UNSAFE red-herring **)
+extern
+castfn evfilt( uint ) :<> evfilt
+extern
+castfn kevent_action( usint ) :<> kevent_action
+extern
+castfn kevent_flag( usint ) :<> kevent_flag
+extern
+castfn kevent_fflag( uint ) :<> kevent_fflag
+extern
+castfn kevent_status( usint ) :<> kevent_status
+extern
+castfn ka2int( kevent_action  ) :<> int
+extern
+castfn kf2int( kevent_flag  ) :<> int
+extern
+castfn ks2int( kevent_status  ) :<> int
+
 implement {}
 evfilt_lor( e1, e2 ) 
-= $UNSAFE.cast{evfilt}( evfilt2uint( e1 ) lor evfilt2uint( e2 ))
+= evfilt( evfilt2uint( e1 ) lor evfilt2uint( e2 ))
 
 implement {}
 evfilt_land( e1, e2 ) 
-= $UNSAFE.cast{evfilt}( evfilt2uint( e1 ) land evfilt2uint( e2 ))
+= evfilt( evfilt2uint( e1 ) land evfilt2uint( e2 ))
 
 implement {}
 evfilt_lhas( e1, e2 ) 
@@ -21,50 +39,50 @@ evfilt_lhas( e1, e2 )
 
 implement {}
 kevent_action_land( k1, k2 )
-= $UNSAFE.cast{kevent_action}( kevent_action_usint( k1 ) land kevent_action_usint( k2 ) )
+= kevent_action( kevent_action_usint( k1 ) land kevent_action_usint( k2 ) )
 
 implement {}
 kevent_action_lor( k1, k2 ) 
-= $UNSAFE.cast{kevent_action}( kevent_action_usint( k1 ) lor kevent_action_usint( k2 ) )
+= kevent_action( kevent_action_usint( k1 ) lor kevent_action_usint( k2 ) )
 
 implement {}
 kevent_action_lhas( k1, k2 ) 
-= g1ofg0( $UNSAFE.cast{int}(( k1 land k2 )) != 0 )
+= g1ofg0( ka2int(( k1 land k2 )) != 0 )
 
 
 implement {}
 kevent_flag_land( k1, k2 )
-= $UNSAFE.cast{kevent_flag}( kevent_flag_usint( k1 ) land kevent_flag_usint( k2 ) )
+= kevent_flag( kevent_flag_usint( k1 ) land kevent_flag_usint( k2 ) )
 
 implement {}
 kevent_flag_lor( k1, k2 ) 
-= $UNSAFE.cast{kevent_flag}( kevent_flag_usint( k1 ) lor kevent_flag_usint( k2 ) )
+= kevent_flag( kevent_flag_usint( k1 ) lor kevent_flag_usint( k2 ) )
 
 implement {}
 kevent_flag_lhas( k1, k2 ) 
-= g1ofg0( $UNSAFE.cast{int}(( k1 land k2 )) != 0 )
+= g1ofg0( kf2int(( k1 land k2 )) != 0 )
 
 
 implement {}
 kevent_status_land( k1, k2 )
-= $UNSAFE.cast{kevent_status}( kevent_status_usint( k1 ) land kevent_status_usint( k2 ) )
+= kevent_status( kevent_status_usint( k1 ) land kevent_status_usint( k2 ) )
 
 implement {}
 kevent_status_lor( k1, k2 ) 
-= $UNSAFE.cast{kevent_status}( kevent_status_usint( k1 ) lor kevent_status_usint( k2 ) )
+= kevent_status( kevent_status_usint( k1 ) lor kevent_status_usint( k2 ) )
 
 implement {}
 kevent_status_lhas( k1, k2 ) 
-= g1ofg0( $UNSAFE.cast{int}(( k1 land k2 )) != 0 )
+= g1ofg0( ks2int(( k1 land k2 )) != 0 )
 
 
 implement {}
 kevent_fflag_land( k1, k2 )
-= $UNSAFE.cast{kevent_fflag}( kevent_fflag_uint( k1 ) land kevent_fflag_uint( k2 ) )
+= kevent_fflag( kevent_fflag_uint( k1 ) land kevent_fflag_uint( k2 ) )
 
 implement {}
 kevent_fflag_lor( k1, k2 ) 
-= $UNSAFE.cast{kevent_fflag}( kevent_fflag_uint( k1 ) lor kevent_fflag_uint( k2 ) )
+= kevent_fflag( kevent_fflag_uint( k1 ) lor kevent_fflag_uint( k2 ) )
 
 implement {}
 kevent_fflag_lhas( k1, k2 ) 

@@ -156,6 +156,10 @@ fun {} sockfd_close_exn{fd:int}{st:status}
   ( sfd: sockfd(fd,st)
   ) : void
 
+fun {} sockfd_close_ign{fd:int}{st:status}
+  ( sfd: sockfd(fd,st)
+  ) : void
+
 fun {} sockfd_close{fd:int}{st:status}
   ( sfd: &sockfd(fd,st) >> sockopt(fd,st,~b)
   ) : #[b:bool] bool b
